@@ -9,15 +9,15 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "include/glm/glm.hpp"
-#include "include/glm/gtc/matrix_transform.hpp"
-#include "include/glm/gtc/type_ptr.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
-#include "window.h"
-#include "mesh.h"
-#include "pyramid.h"
-#include "cube.h"
-#include "shader.h"
+#include "window/window.h"
+#include "primitives/mesh.h"
+#include "primitives/pyramid.h"
+#include "primitives/cube.h"
+#include "shaders/shader.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
