@@ -1,4 +1,4 @@
-# OpenGL library from CSG 3D scenarios editing
+# OpenGL library for CSG 3D scenarios editing
 
 This repository aims to build a library that allows creating 3D scenarios based on Constructive Solid Geometry (CSG).
 
