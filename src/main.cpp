@@ -13,11 +13,11 @@
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/glm/gtc/type_ptr.hpp"
 
-#include "Window.h"
-#include "Mesh.h"
-#include "Pyramid.h"
-#include "Cube.h"
-#include "Shader.h"
+#include "window.h"
+#include "mesh.h"
+#include "pyramid.h"
+#include "cube.h"
+#include "shader.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -31,26 +31,26 @@ std::vector<Shader> shaderList;
 
 // Vertex Shader
 const GLchar *vShader =
-    "#version 300 es                            \n"
-    "out vec4 vCol;                           \n"
-    "uniform mat4 projection;                      \n"
-    "uniform mat4 model;                           \n"
-    "layout (location = 0) in vec3 pos;                           \n"
-    "void main()                                   \n"
-    "{                                             \n"
-    "    gl_Position = projection * model * vec4(pos, 1.0); \n"
-    "    vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0f);      \n"
-    "}                                             \n";
+    "#version 300 es                                          \n"
+    "out vec4 vCol;                                           \n"
+    "uniform mat4 projection;                                 \n"
+    "uniform mat4 model;                                      \n"
+    "layout (location = 0) in vec3 pos;                       \n"
+    "void main()                                              \n"
+    "{                                                        \n"
+    "    gl_Position = projection * model * vec4(pos, 1.0);   \n"
+    "    vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0f);           \n"
+    "}                                                        \n";
 
 // Fragment Shader
 static const char *fShader =
-    "#version 300 es                            \n"
+    "#version 300 es                              \n"
     "precision mediump float;                     \n"
-    "in vec4 vCol;                         \n"
-    "out vec4 color;                           \n"
+    "in vec4 vCol;                                \n"
+    "out vec4 color;                              \n"
     "void main()                                  \n"
     "{                                            \n"
-    "    color = vCol;      \n"
+    "    color = vCol;                            \n"
     "}                                            \n";
 
 void CreateObjects()

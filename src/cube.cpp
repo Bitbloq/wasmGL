@@ -1,4 +1,4 @@
-#include "Cube.h"
+#include "cube.h"
 #include <iostream>
 #include <math.h>
 

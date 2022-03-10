@@ -1,4 +1,4 @@
-#include "Mesh.h"
+#include "mesh.h"
 #include <iostream>
 
 Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}

@@ -1,4 +1,4 @@
-#include "Pyramid.h"
+#include "pyramid.h"
 #include <iostream>
 #include <math.h>
 

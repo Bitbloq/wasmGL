@@ -33,5 +33,9 @@
 main.wasm
 main.js
 main.html
-main
 .vscode
+wasmgl
+
+#CMake files
+CMakeCache.txt
+CMakeFiles
