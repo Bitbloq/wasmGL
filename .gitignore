@@ -30,12 +30,11 @@
 *.exe
 *.out
 *.app
-main.wasm
-main.js
-main.html
 .vscode
-wasmgl
+build/*
+wasmbuild/*
 
 #CMake files
 CMakeCache.txt
 CMakeFiles
+cmake_install.cmake
