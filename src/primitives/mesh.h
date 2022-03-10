@@ -30,6 +30,7 @@ protected:
 	GLuint VAO, VBO, IBO;
 	GLsizei indexCount;
 	std::vector<GLfloat> vertices;
+	std::vector<GLfloat> normals;
 	std::vector<int> indices;
 	glm::mat4 model;
 };

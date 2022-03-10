@@ -17,6 +17,8 @@
 #include "primitives/mesh.h"
 #include "primitives/pyramid.h"
 #include "primitives/cube.h"
+#include "primitives/sphere.h"
+
 #include "shaders/shader.h"
 
 #ifdef __EMSCRIPTEN__
@@ -67,6 +69,11 @@ void CreateObjects()
   obj2->rotate(glm::vec3(0.0f, 0.0f, toRadians * 45.0f));
 
   meshList.push_back(obj2);
+
+  std::shared_ptr<Sphere> obj3 = std::make_shared<Sphere>(SphereDimensions{1.0f});
+  obj3->translate(glm::vec3(2.0f, 0.0f, -10.0f));
+
+  meshList.push_back(obj3);
 }
 
 void CreateShaders()
