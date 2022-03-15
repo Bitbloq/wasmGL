@@ -35,6 +35,8 @@ std::vector<Shader> shaderList;
 Camera camera;
 GLfloat deltaTime{0.0f};
 GLfloat lastTime{0.0f};
+int loops{0};
+GLfloat totaltime{0};
 
 // Vertex Shader
 const GLchar *vShader =
@@ -129,7 +131,10 @@ void mainloop(glm::mat4 &projection)
   GLfloat currentTime = glfwGetTime(); // Time in seconds
   deltaTime = currentTime - lastTime;  // Time in seconds
   lastTime = currentTime;              // Set lastTime to currentTime for next frame
-  int fps = 1 / deltaTime;
+  totaltime += deltaTime;
+  GLfloat meanTime = totaltime / loops;
+  int fps = 1 / meanTime;
+  loops++;
   std::cout << "FPS: " << fps << std::endl;
 
   // std::cout << deltaTime << std::endl;
