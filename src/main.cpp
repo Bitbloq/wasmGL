@@ -21,6 +21,8 @@
 
 #include "shaders/shader.h"
 
+#include "camera/camera.h"
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -30,6 +32,7 @@ const float toRadians = 3.14159265f / 180.0f;
 Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
 std::vector<Shader> shaderList;
+Camera camera;
 
 // Vertex Shader
 const GLchar *vShader =
@@ -37,10 +40,11 @@ const GLchar *vShader =
     "out vec4 vCol;                                           \n"
     "uniform mat4 projection;                                 \n"
     "uniform mat4 model;                                      \n"
+    "uniform mat4 view;                                       \n"
     "layout (location = 0) in vec3 pos;                       \n"
     "void main()                                              \n"
     "{                                                        \n"
-    "    gl_Position = projection * model * vec4(pos, 1.0);   \n"
+    "    gl_Position = projection * view * model * vec4(pos, 1.0);   \n"
     "    vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0f);           \n"
     "}                                                        \n";
 
@@ -94,6 +98,8 @@ int main()
   CreateObjects();
   CreateShaders();
 
+  camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 10.1f, 1.0f);
+
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
 #ifdef __EMSCRIPTEN__
@@ -117,9 +123,11 @@ void emcmainloop(void *mainLoopArg)
 
 void mainloop(glm::mat4 &projection)
 {
-  GLuint uniformProjection = 0, uniformModel = 0;
+
+  GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
   // Get + Handle User Input
   glfwPollEvents();
+  camera.keyControl(mainWindow.getKeys(), 0.001f);
 
   // Clear the window
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -128,6 +136,7 @@ void mainloop(glm::mat4 &projection)
   shaderList[0].UseShader();
   uniformModel = shaderList[0].GetModelLocation();
   uniformProjection = shaderList[0].GetProjectionLocation();
+  uniformView = shaderList[0].GetViewLocation();
 
   // glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
   glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
@@ -135,6 +144,7 @@ void mainloop(glm::mat4 &projection)
   for (auto mesh : meshList)
   {
     glUniformMatrix4fv(uniformModel, 1, GL_FALSE, mesh->getModelPtr());
+    glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
     mesh->RenderMesh();
   }
 
