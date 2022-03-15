@@ -129,6 +129,8 @@ void mainloop(glm::mat4 &projection)
   GLfloat currentTime = glfwGetTime(); // Time in seconds
   deltaTime = currentTime - lastTime;  // Time in seconds
   lastTime = currentTime;              // Set lastTime to currentTime for next frame
+  int fps = 1 / deltaTime;
+  std::cout << "FPS: " << fps << std::endl;
 
   // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
