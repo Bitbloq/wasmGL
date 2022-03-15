@@ -48,6 +48,26 @@ void Camera::keyControl(std::shared_ptr<std::array<bool, 1024>> keys, GLfloat de
   }
 }
 
+void Camera::mouseControl(GLfloat xChange, GLfloat yChange)
+{
+  xChange *= turnSpeed;
+  yChange *= turnSpeed;
+
+  yaw += xChange;
+  pitch += yChange;
+
+  if (pitch > 89.0f)
+  {
+    pitch = 89.0f;
+  }
+  if (pitch < -89.0f)
+  {
+    pitch = -89.0f;
+  }
+
+  udpate();
+}
+
 void Camera::udpate()
 {
   glm::vec3 front;

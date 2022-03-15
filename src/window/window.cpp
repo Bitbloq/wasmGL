@@ -5,7 +5,9 @@ Window::Window() : width{800},
 									 height{600},
 									 mouseFirstMoved{true},
 									 leftButtonPressed{false},
-									 rightButtonPressed{false}
+									 rightButtonPressed{false},
+									 xChange{0.0f},
+									 yChange{0.0f}
 {
 	pKeys = std::make_shared<std::array<bool, 1024>>();
 	pKeys->fill(false);
@@ -15,7 +17,9 @@ Window::Window(GLint windowWidth, GLint windowHeight) : width{windowWidth},
 																												height{windowHeight},
 																												mouseFirstMoved{true},
 																												leftButtonPressed{false},
-																												rightButtonPressed{false}
+																												rightButtonPressed{false},
+																												xChange{0.0f},
+																												yChange{0.0f}
 {
 	pKeys = std::make_shared<std::array<bool, 1024>>();
 	pKeys->fill(false);
@@ -120,12 +124,12 @@ void Window::handleKeys(GLFWwindow *window, int key, int code, int action, int m
 		if (action == GLFW_PRESS)
 		{
 			theWindow->pKeys->at(key) = true;
-			std::cout << "Key Pressed: " << key << std::endl;
+			// std::cout << "Key Pressed: " << key << std::endl;
 		}
 		else if (action == GLFW_RELEASE)
 		{
 			theWindow->pKeys->at(key) = false;
-			std::cout << "Key Released: " << key << std::endl;
+			// std::cout << "Key Released: " << key << std::endl;
 		}
 	}
 }
@@ -148,8 +152,8 @@ void Window::handleMouseMovement(GLFWwindow *window, double xPos, double yPos)
 	theWindow->lastX = xPos;
 	theWindow->lastY = yPos;
 
-	std::cout << "Mouse X: " << xPos << " Mouse Y: " << yPos << std::endl;
-	std::cout << "X Change: " << theWindow->xChange << " Y Change: " << theWindow->yChange << std::endl;
+	// std::cout << "Mouse X: " << xPos << " Mouse Y: " << yPos << std::endl;
+	// std::cout << "X Change: " << theWindow->xChange << " Y Change: " << theWindow->yChange << std::endl;
 }
 
 void Window::createCallbacks()
@@ -168,7 +172,7 @@ GLfloat Window::getXChange()
 
 GLfloat Window::getYChange()
 {
-	GLfloat aux = xChange;
+	GLfloat aux = yChange;
 	yChange = 0;
 	return aux;
 }

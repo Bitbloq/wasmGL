@@ -13,6 +13,7 @@ public:
   ~Camera();
 
   void keyControl(std::shared_ptr<std::array<bool, 1024>> keys, GLfloat deltaTime);
+  void mouseControl(GLfloat xChange, GLfloat yChange);
   glm::mat4 calculateViewMatrix();
 
 private:

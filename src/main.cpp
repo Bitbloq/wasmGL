@@ -33,6 +33,8 @@ Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
 std::vector<Shader> shaderList;
 Camera camera;
+GLfloat deltaTime{0.0f};
+GLfloat lastTime{0.0f};
 
 // Vertex Shader
 const GLchar *vShader =
@@ -98,7 +100,7 @@ int main()
   CreateObjects();
   CreateShaders();
 
-  camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 10.1f, 1.0f);
+  camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
 
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
@@ -123,11 +125,17 @@ void emcmainloop(void *mainLoopArg)
 
 void mainloop(glm::mat4 &projection)
 {
+  // Calculate deltatime of current frame
+  GLfloat currentTime = glfwGetTime(); // Time in seconds
+  deltaTime = currentTime - lastTime;  // Time in seconds
+  lastTime = currentTime;              // Set lastTime to currentTime for next frame
 
+  // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
   // Get + Handle User Input
   glfwPollEvents();
-  camera.keyControl(mainWindow.getKeys(), 0.001f);
+  camera.keyControl(mainWindow.getKeys(), deltaTime);
+  camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange());
 
   // Clear the window
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
