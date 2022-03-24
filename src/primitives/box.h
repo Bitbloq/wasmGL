@@ -3,8 +3,11 @@
 
 #include "../core/mesh.h"
 
-struct BoxDimensions
+class BoxDimensions
 {
+public:
+  BoxDimensions(GLfloat width, GLfloat height, GLfloat depth) : width{width}, height{height}, depth{depth} {}
+  BoxDimensions(GLfloat side = 1.0f) : width{side}, height{side}, depth{side} {}
   GLfloat width;
   GLfloat height;
   GLfloat depth;
