@@ -1,5 +1,8 @@
 // emcc -std=c++17 *.cpp -I /user/include/ -s USE_GLFW=3 -s FULL_ES3=1 -s GL_ASSERTIONS=1 -s GL_DEBUG=1  -s WASM=1 -o main.html
 
+// #define LOGGING
+#define FPS
+
 #include <memory>
 #include <stdio.h>
 #include <string.h>
@@ -79,8 +82,13 @@ void CreateObjects()
 
   // std::shared_ptr<Cube> cube = std::make_shared<Cube>(CubeDimensions{1.0f});
   // std::shared_ptr<Box> box = std::make_shared<Box>(BoxDimensions{0.5f, 0.5f, 2.5f});
-  std::shared_ptr<Sphere> sphere1 = std::make_shared<Sphere>(SphereDimensions{0.6f}, SphereParameters{8, 9, 0.0f, 2 * M_PI, 0.0f, M_PI});
+
+  auto init1 = std::chrono::high_resolution_clock::now();
+  const std::shared_ptr<Sphere> sphere1 = std::make_shared<Sphere>(SphereDimensions{0.6f}, SphereParameters{8, 9, 0.0f, 2 * M_PI, 0.0f, M_PI});
   sphere1->translate(glm::vec3(0.2f, 0.0f, 0.0f));
+  auto end1 = std::chrono::high_resolution_clock::now();
+
+  std::cout << "Sphere Geometry: " << std::chrono::duration_cast<std::chrono::microseconds>(end1 - init1).count() / 1000. << " ms" << std::endl;
 
   std::shared_ptr<Sphere> sphere2 = std::make_shared<Sphere>(SphereDimensions{0.6f}, SphereParameters{8, 9, 0.0f, 2 * M_PI, 0.0f, M_PI});
   sphere2->translate(glm::vec3(-0.2f, 0.0f, 0.0f));
@@ -93,19 +101,22 @@ void CreateObjects()
   // auto cubeTree = make_shared<ThreeBSP>(ThreeBSP(cube));
   // auto boxTree = make_shared<ThreeBSP>(ThreeBSP(box));
 
-  auto startTime = std::chrono::high_resolution_clock::now();
+  auto init2 = std::chrono::high_resolution_clock::now();
   auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
-  auto end1 = std::chrono::high_resolution_clock::now();
-  auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - startTime).count();
-  std::cout << "Sphere 1: " << duration1 << " ms" << std::endl;
+  auto end2 = std::chrono::high_resolution_clock::now();
 
   auto sphere2Tree = make_shared<ThreeBSP>(ThreeBSP(sphere2));
+
+  auto init3 = std::chrono::high_resolution_clock::now();
   auto csg = sphere1Tree->intersect(sphere2Tree);
   std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
-  auto endTime = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+  auto end3 = std::chrono::high_resolution_clock::now();
 
-  std::cout << "Time taken to create CSG: " << duration << "ms" << std::endl;
+#ifdef LOGGING
+  std::cout << "Sphere Tree: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - init2).count() / 1000. << " ms" << std::endl;
+  std::cout << "Intersect: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init3).count() / 1000. << " ms" << std::endl;
+  std::cout << "Total: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init1).count() / 1000. << " ms" << std::endl;
+#endif
 
   meshList.push_back(csgObj);
 }
@@ -161,7 +172,9 @@ void mainloop(glm::mat4 &projection)
   GLfloat meanTime = totaltime / loops;
   int fps = 1 / meanTime;
   loops++;
-  // std::cout << "FPS: " << fps << std::endl;
+#ifdef FPS
+  std::cout << "FPS: " << fps << std::endl;
+#endif
 
   // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;

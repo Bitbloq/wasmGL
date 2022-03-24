@@ -1,5 +1,6 @@
 #include "polygon.h"
 #include "types.h"
+#include <algorithm>
 
 Polygon::Polygon(vector<shared_ptr<Vertex>> const &vertices)
     : vertices(vertices)
@@ -41,11 +42,7 @@ shared_ptr<Polygon> Polygon::flip()
   vector<shared_ptr<Vertex>> vertices_clone;
   this->normal = this->normal->multiplyScalar(-1);
   this->w *= -1;
-  for (int i = this->vertices.size() - 1; i >= 0; i--)
-  {
-    vertices_clone.push_back(this->vertices.at(i));
-  }
-  this->vertices = vertices_clone;
+  std::reverse(this->vertices.begin(), this->vertices.end());
   return shared_from_this();
 }
 
@@ -69,10 +66,8 @@ CLASSIFICATION Polygon::classifySide(shared_ptr<Polygon> const &polygon)
 {
   int num_positive{0};
   int num_negative{0};
-  auto vertices_count = polygon->vertices.size();
-  for (size_t i{0}; i < vertices_count; i++)
+  for (auto vertex : polygon->vertices)
   {
-    auto vertex = polygon->vertices.at(i);
     auto classification = classifyVertex(vertex);
     if (classification == FRONT)
     {
@@ -95,10 +90,7 @@ CLASSIFICATION Polygon::classifySide(shared_ptr<Polygon> const &polygon)
   {
     return COPLANAR;
   }
-  else
-  {
-    return SPANNING;
-  }
+  return SPANNING;
 }
 
 void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr<Polygon>> &coplanar_front, vector<shared_ptr<Polygon>> &coplanar_back, vector<shared_ptr<Polygon>> &front, vector<shared_ptr<Polygon>> &back)
@@ -154,13 +146,13 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
     if (front_vertices.size() >= 3)
     {
       auto p = make_shared<Polygon>(front_vertices);
-      p->calculateProperties();
+      // p->calculateProperties();
       front.push_back(p);
     }
     if (back_vertices.size() >= 3)
     {
       auto p = make_shared<Polygon>(back_vertices);
-      p->calculateProperties();
+      // p->calculateProperties();
       back.push_back(p);
     }
   }

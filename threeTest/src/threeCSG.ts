@@ -12,6 +12,7 @@
  * Last modified  : 2019-01-02 18:16:45
  */
 
+import now from "performance-now";
 import * as THREE from "three";
 
 const EPSILON = 1e-5,
@@ -150,18 +151,46 @@ export default class ThreeBSP {
   }
 
   public intersect(other_tree: ThreeBSP): ThreeBSP {
-    let a: any = this.tree.clone(),
-      b = other_tree.tree.clone();
-
+    const t1 = now();
+    let a: any = this.tree.clone();
+    const t2 = now();
+    let b = other_tree.tree.clone();
+    const t3 = now();
     a.invert();
+    const t4 = now();
     b.clipTo(a);
+    const t5 = now();
     b.invert();
+    const t6 = now();
     a.clipTo(b);
+    const t7 = now();
     b.clipTo(a);
+    const t8 = now();
     a.build(b.allPolygons());
+    const t9 = now();
     a.invert();
+    const t10 = now();
     a = new ThreeBSP(a);
+    const t11 = now();
     a.matrix = this.matrix;
+    const t12 = now();
+
+    console.log("--------------------------------");
+    console.log(((t2 - t1) * 1000).toFixed(0));
+    console.log(((t3 - t2) * 1000).toFixed(0));
+    console.log(((t4 - t3) * 1000).toFixed(0));
+    console.log(((t5 - t4) * 1000).toFixed(0));
+    console.log(((t6 - t5) * 1000).toFixed(0));
+    console.log(((t7 - t6) * 1000).toFixed(0));
+    console.log(((t8 - t7) * 1000).toFixed(0));
+    console.log(((t9 - t8) * 1000).toFixed(0));
+    console.log(((t10 - t9) * 1000).toFixed(0));
+    console.log(((t11 - t10) * 1000).toFixed(0));
+    console.log(((t12 - t11) * 1000).toFixed(0));
+
+    console.log(((t12 - t1) * 1000).toFixed(0));
+
+    console.log("--------------------------------");
     return a;
   }
 

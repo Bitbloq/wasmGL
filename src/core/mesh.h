@@ -74,7 +74,7 @@ protected:
 
 	std::vector<glm::vec3> normals;
 	std::vector<int> indices;
-	std::vector<glm::vec2> uvs;
+	// std::vector<glm::vec2> uvs;
 
 	glm::mat4 model;
 

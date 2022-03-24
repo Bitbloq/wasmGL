@@ -4,19 +4,27 @@ import now from "performance-now";
 
 console.log("hello world");
 
+const init1 = now();
 const sphere1 = new THREE.SphereGeometry(0.6, 10, 10);
-const sphere2 = new THREE.SphereGeometry(0.6, 10, 10);
 sphere1.translate(0.2, 0, 0);
+const end1 = now();
+
+console.log("SphereGeometry: " + (end1 - init1).toFixed(3) + "ms");
+
+const sphere2 = new THREE.SphereGeometry(0.6, 10, 10);
 sphere2.translate(-0.2, 0, 0);
 
-console.log("vertices: " + sphere1.vertices.length);
-
-const init = now();
+const init2 = now();
 const sphere1Tree = new ThreeBSP(sphere1);
-const end1 = now();
-console.log("sphere1Tree: " + (end1 - init));
-const sphere2Tree = new ThreeBSP(sphere2);
-sphere1Tree.intersect(sphere2Tree).toMesh(undefined);
-const end = now();
+const end2 = now();
 
-console.log("Time to create CSG: " + (end - init).toFixed(3) + "ms");
+console.log("sphere1Tree: " + (end2 - init2).toFixed(3) + "ms");
+
+const sphere2Tree = new ThreeBSP(sphere2);
+
+const init3 = now();
+sphere1Tree.intersect(sphere2Tree).toMesh(undefined);
+const end3 = now();
+console.log("intersect: " + (end3 - init3).toFixed(3) + "ms");
+
+console.log("Total: " + (end3 - init1).toFixed(3) + "ms");

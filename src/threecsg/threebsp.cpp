@@ -4,6 +4,8 @@
 #include <map>
 #include "../complexobjects/csgmesh.h"
 #include <iostream>
+#include <chrono>
+#include <set>
 
 using namespace std;
 
@@ -34,21 +36,21 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
 
     auto geomvertex = geometry->vertices.at(face->a);
     // auto uvs = make_shared<glm::vec2>(glm::vec2(faceVertexUvs.at(0)->x, faceVertexUvs.at(0)->y));
-    auto uvs = nullptr;
+    // auto uvs = nullptr;
     auto vertex = make_shared<Vertex>(Vertex(glm::vec3(geomvertex.x, geomvertex.y, geomvertex.z), face->vertexNormals.at(0) /*, *uvs*/));
     vertex->applyMatrix(*matrix);
     polygon->vertices.push_back(vertex);
 
     geomvertex = geometry->vertices.at(face->b);
     // uvs = make_shared<glm::vec2>(glm::vec2(faceVertexUvs.at(1)->x, faceVertexUvs.at(1)->y));
-    uvs = nullptr;
+    // uvs = nullptr;
     vertex = make_shared<Vertex>(Vertex(glm::vec3(geomvertex.x, geomvertex.y, geomvertex.z), face->vertexNormals.at(1) /*, *uvs*/));
     vertex->applyMatrix(*matrix);
     polygon->vertices.push_back(vertex);
 
     geomvertex = geometry->vertices.at(face->c);
     // uvs = make_shared<glm::vec2>(glm::vec2(faceVertexUvs.at(2)->x, faceVertexUvs.at(2)->y));
-    uvs = nullptr;
+    // uvs = nullptr;
     vertex = make_shared<Vertex>(Vertex(glm::vec3(geomvertex.x, geomvertex.y, geomvertex.z), face->vertexNormals.at(2) /*, *uvs*/));
     vertex->applyMatrix(*matrix);
     polygon->vertices.push_back(vertex);
@@ -56,12 +58,12 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
     polygon->calculateProperties();
     polygons.push_back(polygon);
   }
-  cout << polygons.size() << std::endl;
   this->tree = make_shared<Node>(Node(polygons));
 }
 
 shared_ptr<ThreeBSP> ThreeBSP::subtract(shared_ptr<ThreeBSP> const &other_tree)
 {
+  auto init1 = chrono::high_resolution_clock::now();
   auto a = this->tree->clone();
   auto b = other_tree->tree->clone();
 
@@ -95,23 +97,53 @@ shared_ptr<ThreeBSP> ThreeBSP::add(shared_ptr<ThreeBSP> const &other_tree)
 
 shared_ptr<ThreeBSP> ThreeBSP::intersect(shared_ptr<ThreeBSP> const &other_tree)
 {
+  // auto t1 = chrono::high_resolution_clock::now();
   auto a = this->tree->clone();
+  // auto t2 = chrono::high_resolution_clock::now();
   auto b = other_tree->tree->clone();
+  // auto t3 = chrono::high_resolution_clock::now();
   a->invert();
+  // auto t4 = chrono::high_resolution_clock::now();
   b->clipTo(a);
+  // auto t5 = chrono::high_resolution_clock::now();
   b->invert();
+  // auto t6 = chrono::high_resolution_clock::now();
   a->clipTo(b);
+  // auto t7 = chrono::high_resolution_clock::now();
   b->clipTo(a);
+  // auto t8 = chrono::high_resolution_clock::now();
   a->build(b->allPolygons());
+  // auto t9 = chrono::high_resolution_clock::now();
   a->invert();
+  // auto t10 = chrono::high_resolution_clock::now();
   auto absp = make_shared<ThreeBSP>(ThreeBSP(a));
+  // auto t11 = chrono::high_resolution_clock::now();
   absp->matrix = this->matrix;
+  // auto t12 = chrono::high_resolution_clock::now();
+
+#ifdef LOGGING
+  std::cout << "Intersect times breakout\n--------------------------------\n";
+  std::cout << chrono::duration_cast<chrono::microseconds>(t2 - t1).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t3 - t2).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t4 - t3).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t5 - t4).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t6 - t5).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t7 - t6).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t8 - t7).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t9 - t8).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t10 - t9).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t11 - t10).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t12 - t11).count() << std::endl;
+  std::cout << chrono::duration_cast<chrono::microseconds>(t12 - t1).count() << std::endl;
+  std::cout << "Intersect times breakout\n--------------------------------\n";
+#endif
+
   return absp;
 }
 
 shared_ptr<CSGMesh> ThreeBSP::toMesh()
 {
-  vector<pair<string, int>> vertice_dict;
+  set<pair<string, int>> vertice_dict;
   auto matrix = make_shared<glm::mat4x4>(glm::mat4x4(*(this->matrix)));
   *matrix = glm::inverse(*matrix);
   auto mesh = make_shared<CSGMesh>();
@@ -122,9 +154,9 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
     auto polygon = polygons.at(i);
     for (size_t j{2}; j < polygon->vertices.size(); j++)
     {
-      std::vector<shared_ptr<glm::vec2>> verticeUvs;
+      // std::vector<shared_ptr<glm::vec2>> verticeUvs;
       auto vertex = polygon->vertices.at(0);
-      verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
+      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
       auto vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
       vertex3 = applyMatrix4(vertex3, matrix);
       int vertex_idx_a;
@@ -140,7 +172,7 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
       }
 
       vertex = polygon->vertices.at(j - 1);
-      verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
+      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
       vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
       vertex3 = applyMatrix4(vertex3, matrix);
       int vertex_idx_b;
@@ -156,7 +188,7 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
       }
 
       vertex = polygon->vertices.at(j);
-      verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
+      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
       vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
       vertex3 = applyMatrix4(vertex3, matrix);
       int vertex_idx_c;
@@ -202,49 +234,57 @@ shared_ptr<glm::vec3> applyMatrix4(shared_ptr<glm::vec3> const &v, shared_ptr<gl
   auto z = (elements[2] * v->x + elements[6] * v->y + elements[10] * v->z + elements[14]) * w;
   return make_shared<glm::vec3>(glm::vec3(x, y, z));
 }
-bool exists(vector<pair<string, int>> data, string key)
+
+bool operator==(pair<string, int> const &a, pair<string, int> const &b)
 {
-  for (auto p : data)
+  return a.first == b.first;
+}
+
+bool operator<(pair<string, int> const &a, pair<string, int> const &b)
+{
+  return a.first < b.first;
+}
+
+bool operator>(pair<string, int> const &a, pair<string, int> const &b)
+{
+  return a.first > b.first;
+}
+
+bool operator<=(pair<string, int> const &a, pair<string, int> const &b)
+{
+  return a.first <= b.first;
+}
+
+bool operator>=(pair<string, int> const &a, pair<string, int> const &b)
+{
+  return a.first >= b.first;
+}
+
+bool operator!=(pair<string, int> const &a, pair<string, int> const &b)
+{
+  return a.first != b.first;
+}
+
+bool exists(set<pair<string, int>> const &data, string key)
+{
+  if (data.find(make_pair(key, 0)) != data.end())
   {
-    if (p.first == key)
-    {
-      return true;
-    }
+    return true;
   }
   return false;
 }
 
-int getValue(vector<pair<string, int>> data, string key)
+int getValue(set<pair<string, int>> const &data, string key)
 {
-  for (auto p : data)
-  {
-    if (p.first == key)
-    {
-      return p.second;
-    }
-  }
-  return -1;
+  return data.find(make_pair(key, 0))->second;
 }
 string make_key(shared_ptr<glm::vec3> const &v)
 {
   return to_string(v->x) + "," + to_string(v->y) + "," + to_string(v->z);
 }
 
-vector<pair<string, int>> &addPair(vector<pair<string, int>> &data, string key, int value)
+set<pair<string, int>> &addPair(set<pair<string, int>> &data, string key, int value)
 {
-  if (exists(data, key))
-  {
-    for (auto p : data)
-    {
-      if (p.first == key)
-      {
-        p.second = value;
-      }
-    }
-  }
-  else
-  {
-    data.push_back(make_pair(key, value));
-  }
+  data.insert(make_pair(key, value));
   return data;
 }
