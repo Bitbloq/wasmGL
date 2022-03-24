@@ -3,6 +3,8 @@
 
 Node::Node(vector<shared_ptr<Polygon>> const &polygons)
 {
+  this->front = nullptr;
+  this->back = nullptr;
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
 
@@ -45,7 +47,7 @@ bool Node::isConvex(vector<shared_ptr<Polygon>> const &polygons)
 
 void Node::build(vector<shared_ptr<Polygon>> const &polygons)
 {
-  if (!(this->divider))
+  if (!(this->divider) && polygons.size() > 0)
   {
     this->divider = polygons.at(0)->clone();
   }
@@ -53,7 +55,8 @@ void Node::build(vector<shared_ptr<Polygon>> const &polygons)
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
 
-  for (size_t i{0}; i < polygons.size(); i++)
+  auto polygons_count = polygons.size();
+  for (size_t i{0}; i < polygons_count; i++)
   {
     this->divider->splitPolygon(polygons.at(i), this->polygons, this->polygons, front, back);
   }
@@ -100,14 +103,10 @@ shared_ptr<Node> Node::clone() const
   node->divider = this->divider->clone();
   std::transform(this->polygons.begin(), this->polygons.end(), std::back_inserter(node->polygons), [](shared_ptr<Polygon> const &polygon)
                  { return polygon->clone(); });
-  if (this->front)
-  {
-    node->front = this->front->clone();
-  }
-  if (this->back)
-  {
-    node->back = this->back->clone();
-  }
+
+  node->front = this->front ? this->front->clone() : nullptr;
+  node->back = this->back ? this->back->clone() : nullptr;
+
   return node;
 }
 
@@ -128,7 +127,7 @@ shared_ptr<Node> Node::invert()
   }
   auto temp = this->front;
   this->front = this->back;
-  this->back = this->front;
+  this->back = temp;
 
   return shared_from_this();
 }
@@ -144,7 +143,8 @@ vector<shared_ptr<Polygon>> Node::clipPolygons(vector<shared_ptr<Polygon>> const
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
 
-  for (size_t i{0}; i < polygons.size(); i++)
+  size_t polygon_count = polygons.size();
+  for (size_t i{0}; i < polygon_count; i++)
   {
     this->divider->splitPolygon(polygons.at(i), front, back, front, back);
   }

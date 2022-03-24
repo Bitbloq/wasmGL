@@ -13,7 +13,7 @@ class Polygon : public std::enable_shared_from_this<Polygon>
 public:
   Polygon(vector<shared_ptr<Vertex>> const &vertices = {});
   shared_ptr<Polygon> clone() const;
-  shared_ptr<Polygon> calculateProperties();
+  void calculateProperties();
   shared_ptr<Polygon> flip();
   CLASSIFICATION classifyVertex(shared_ptr<Vertex> const &vertex);
   CLASSIFICATION classifySide(shared_ptr<Polygon> const &polygon);

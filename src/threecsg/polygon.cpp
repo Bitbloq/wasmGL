@@ -10,49 +10,48 @@ Polygon::Polygon(vector<shared_ptr<Vertex>> const &vertices)
   }
   else
   {
-    normal = {};
+    normal = nullptr;
     w = 0;
   }
 }
 
-shared_ptr<Polygon> Polygon::calculateProperties()
+void Polygon::calculateProperties()
 {
   auto a = vertices.at(0);
   auto b = vertices.at(1);
   auto c = vertices.at(2);
 
-  normal = b->clone()->subtract(a)->cross(c->clone()->subtract(a))->normalize();
-  w = normal->clone()->dot(a);
-
-  return shared_from_this();
+  this->normal = b->clone()->subtract(a)->cross(c->clone()->subtract(a))->normalize();
+  this->w = this->normal->clone()->dot(a);
 }
 
 shared_ptr<Polygon> Polygon::clone() const
 {
-  vector<shared_ptr<Vertex>> vertices_clone;
+  auto polygon = make_shared<Polygon>(Polygon());
   for (auto vertex : vertices)
   {
-    vertices_clone.push_back(vertex->clone());
+    polygon->vertices.push_back(vertex->clone());
   }
-  return make_shared<Polygon>(Polygon(vertices_clone));
+  polygon->calculateProperties();
+  return polygon;
 }
 
 shared_ptr<Polygon> Polygon::flip()
 {
   vector<shared_ptr<Vertex>> vertices_clone;
-  normal = normal->multiplyScalar(-1);
-  w = w * -1;
-  for (int i = vertices.size() - 1; i >= 0; i--)
+  this->normal = this->normal->multiplyScalar(-1);
+  this->w *= -1;
+  for (int i = this->vertices.size() - 1; i >= 0; i--)
   {
-    vertices_clone.push_back(vertices.at(i));
+    vertices_clone.push_back(this->vertices.at(i));
   }
-  vertices = vertices_clone;
+  this->vertices = vertices_clone;
   return shared_from_this();
 }
 
 CLASSIFICATION Polygon::classifyVertex(shared_ptr<Vertex> const &vertex)
 {
-  auto side_value = normal->dot(vertex) - w;
+  auto side_value = this->normal->dot(vertex) - this->w;
   if (side_value < -EPSILON)
   {
     return BACK;
@@ -68,9 +67,10 @@ CLASSIFICATION Polygon::classifyVertex(shared_ptr<Vertex> const &vertex)
 
 CLASSIFICATION Polygon::classifySide(shared_ptr<Polygon> const &polygon)
 {
-  int num_positive = 0;
-  int num_negative = 0;
-  for (int i{0}; i < vertices.size(); i++)
+  int num_positive{0};
+  int num_negative{0};
+  auto vertices_count = polygon->vertices.size();
+  for (size_t i{0}; i < vertices_count; i++)
   {
     auto vertex = polygon->vertices.at(i);
     auto classification = classifyVertex(vertex);
@@ -87,11 +87,11 @@ CLASSIFICATION Polygon::classifySide(shared_ptr<Polygon> const &polygon)
   {
     return FRONT;
   }
-  else if (num_positive == 0 && num_negative > 0)
+  if (num_positive == 0 && num_negative > 0)
   {
     return BACK;
   }
-  else if (num_positive == 0 && num_negative == 0)
+  if (num_positive == 0 && num_negative == 0)
   {
     return COPLANAR;
   }
@@ -139,11 +139,11 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
       {
         front_vertices.push_back(vi);
       }
-      if (tj != FRONT)
+      if (ti != FRONT)
       {
-        back_vertices.push_back(vj);
+        back_vertices.push_back(vi);
       }
-      if (ti | tj == CLASSIFICATION::SPANNING)
+      if ((ti | tj) == CLASSIFICATION::SPANNING)
       {
         auto t = (this->w - this->normal->dot(vi)) / (this->normal->dot(vj->clone()->subtract(vi)));
         auto v = vi->interpolate(vj, t);
@@ -153,11 +153,15 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
     }
     if (front_vertices.size() >= 3)
     {
-      front.push_back(make_shared<Polygon>(Polygon(front_vertices)));
+      auto p = make_shared<Polygon>(front_vertices);
+      p->calculateProperties();
+      front.push_back(p);
     }
     if (back_vertices.size() >= 3)
     {
-      back.push_back(make_shared<Polygon>(Polygon(back_vertices)));
+      auto p = make_shared<Polygon>(back_vertices);
+      p->calculateProperties();
+      back.push_back(p);
     }
   }
 }

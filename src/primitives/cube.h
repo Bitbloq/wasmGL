@@ -1,7 +1,7 @@
 #ifndef CUBE_H
 #define CUBE_H
 
-#include "mesh.h"
+#include "../core/mesh.h"
 
 struct CubeDimensions
 {

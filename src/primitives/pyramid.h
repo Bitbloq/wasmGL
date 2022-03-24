@@ -1,7 +1,7 @@
 #ifndef PYRAMID_H
 #define PYRAMID_H
 
-#include "mesh.h"
+#include "../core/mesh.h"
 
 struct PyramidDimensions
 {

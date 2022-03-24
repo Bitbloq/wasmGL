@@ -1,17 +1,27 @@
 #ifndef SPHERE_H
 #define SPHERE_H
 
-#include "mesh.h"
+#include "../core/mesh.h"
 
 struct SphereDimensions
 {
   GLfloat radius;
 };
 
+struct SphereParameters
+{
+  int widthSegments;
+  int heightSegments;
+  float phiStart;
+  float phiLength;
+  float thetaStart;
+  float thetaLength;
+};
+
 class Sphere : public Mesh
 {
 public:
-  Sphere(SphereDimensions dimensions = SphereDimensions{1.0f});
+  Sphere(SphereDimensions const &dimensions = {1.0f}, SphereParameters const &parameters = {6, 8, 0.0f, 2 * M_PI, 0.0f, M_PI});
   Sphere(Sphere const &Sphere);
   ~Sphere();
 
@@ -21,9 +31,9 @@ public:
 private:
   void createVertices();
   SphereDimensions dimensions;
-  float radius;
-  int sectorCount;
-  int stackCount;
+  SphereParameters parameters;
+  int widthSegments;
+  int heightSegments;
 };
 
 #endif

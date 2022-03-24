@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["es6", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "rootDirs": ["src", "../common/**/*.ts"],
+    "outDir": "build",
+    "downlevelIteration": true
+  },
+  "exclude": ["node_modules", "tsconfig.json"],
+  "include": ["**/*.ts", "**/*.tsx", "./src/server.ts", "../common/**/*.ts"]
+}

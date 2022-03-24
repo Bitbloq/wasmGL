@@ -14,14 +14,19 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #include "window/window.h"
-#include "primitives/mesh.h"
+#include "core/mesh.h"
 #include "primitives/pyramid.h"
 #include "primitives/cube.h"
 #include "primitives/sphere.h"
+#include "primitives/box.h"
 
 #include "shaders/shader.h"
 
 #include "camera/camera.h"
+#include "complexobjects/csgmesh.h"
+#include "threecsg/threebsp.h"
+
+#include <chrono>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -66,22 +71,43 @@ static const char *fShader =
 void CreateObjects()
 {
 
-  std::shared_ptr<Pyramid> obj1 = std::make_shared<Pyramid>(PyramidDimensions{1.0f, 1.0f});
-  obj1->translate(glm::vec3(0.0f, 0.0f, -2.5f));
-  obj1->rotate(glm::vec3(0.0f, 0.0f, toRadians * 90.0f));
+  // std::shared_ptr<Pyramid> obj1 = std::make_shared<Pyramid>(PyramidDimensions{1.0f, 1.0f});
+  // obj1->translate(glm::vec3(0.0f, 0.0f, -2.5f));
+  // obj1->rotate(glm::vec3(0.0f, 0.0f, toRadians * 90.0f));
 
-  meshList.push_back(obj1);
+  // meshList.push_back(obj1);
 
-  std::shared_ptr<Cube> obj2 = std::make_shared<Cube>(CubeDimensions{1.0f});
-  obj2->translate(glm::vec3(-2.0f, 0.0f, -5.5f));
-  obj2->rotate(glm::vec3(0.0f, 0.0f, toRadians * 45.0f));
+  // std::shared_ptr<Cube> cube = std::make_shared<Cube>(CubeDimensions{1.0f});
+  // std::shared_ptr<Box> box = std::make_shared<Box>(BoxDimensions{0.5f, 0.5f, 2.5f});
+  std::shared_ptr<Sphere> sphere1 = std::make_shared<Sphere>(SphereDimensions{0.6f}, SphereParameters{8, 9, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  sphere1->translate(glm::vec3(0.2f, 0.0f, 0.0f));
 
-  meshList.push_back(obj2);
+  std::shared_ptr<Sphere> sphere2 = std::make_shared<Sphere>(SphereDimensions{0.6f}, SphereParameters{8, 9, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  sphere2->translate(glm::vec3(-0.2f, 0.0f, 0.0f));
 
-  std::shared_ptr<Sphere> obj3 = std::make_shared<Sphere>(SphereDimensions{1.0f});
-  obj3->translate(glm::vec3(2.0f, 0.0f, -10.0f));
+  // meshList.push_back(sphere1);
 
-  meshList.push_back(obj3);
+  // meshList.push_back(cube);
+  // meshList.push_back(box);
+
+  // auto cubeTree = make_shared<ThreeBSP>(ThreeBSP(cube));
+  // auto boxTree = make_shared<ThreeBSP>(ThreeBSP(box));
+
+  auto startTime = std::chrono::high_resolution_clock::now();
+  auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
+  auto end1 = std::chrono::high_resolution_clock::now();
+  auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - startTime).count();
+  std::cout << "Sphere 1: " << duration1 << " ms" << std::endl;
+
+  auto sphere2Tree = make_shared<ThreeBSP>(ThreeBSP(sphere2));
+  auto csg = sphere1Tree->intersect(sphere2Tree);
+  std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+  auto endTime = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+  std::cout << "Time taken to create CSG: " << duration << "ms" << std::endl;
+
+  meshList.push_back(csgObj);
 }
 
 void CreateShaders()
@@ -135,7 +161,7 @@ void mainloop(glm::mat4 &projection)
   GLfloat meanTime = totaltime / loops;
   int fps = 1 / meanTime;
   loops++;
-  std::cout << "FPS: " << fps << std::endl;
+  // std::cout << "FPS: " << fps << std::endl;
 
   // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;

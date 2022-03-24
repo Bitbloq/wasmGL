@@ -1,9 +1,14 @@
 #include "sphere.h"
 #include <cmath>
+#include <iostream>
 
-Sphere::Sphere(SphereDimensions dimensions) : Mesh{}, dimensions{dimensions}, radius{1.0f}, sectorCount{100}, stackCount{100}
+Sphere::Sphere(SphereDimensions const &dimensions, SphereParameters const &parameters) : Mesh{}, dimensions{dimensions}, parameters{parameters}
 {
+  cout << "widthSegments: " << parameters.widthSegments << endl;
+  cout << "heightSegments: " << parameters.heightSegments << endl;
+  cout << "radius: " << dimensions.radius << endl;
   createVertices();
+  computeFaces();
   CreateMesh();
 }
 
@@ -13,67 +18,91 @@ Sphere::~Sphere()
 
 void Sphere::createVertices()
 {
-  float x, y, z, xy;                           // vertex position
-  float nx, ny, nz, lengthInv = 1.0f / radius; // vertex normal
+  auto radius = dimensions.radius;
+  auto heightSegments = parameters.heightSegments;
+  auto widthSegments = parameters.widthSegments;
+  auto phiStart = parameters.phiStart;
+  auto phiLength = parameters.phiLength;
+  auto thetaStart = parameters.thetaStart;
+  auto thetaLength = parameters.thetaLength;
 
-  float sectorStep = 2 * M_PI / sectorCount;
-  float stackStep = M_PI / stackCount;
-  float sectorAngle, stackAngle;
+  cout << "widthSegments: " << widthSegments << endl;
+  cout << "heightSegments: " << heightSegments << endl;
 
-  for (int i = 0; i <= stackCount; ++i)
+  int index = 0;
+  std::vector<std::vector<int>> grid;
+
+  widthSegments = std::max(3, widthSegments);
+  heightSegments = std::max(2, heightSegments);
+
+  cout << "widthSegments: " << widthSegments << endl;
+  cout << "heightSegments: " << heightSegments << endl;
+
+  auto thetaEnd = std::min(thetaStart + thetaLength, float(M_PI));
+
+  for (size_t iy{0}; iy <= heightSegments; iy++)
   {
-    stackAngle = M_PI / 2 - i * stackStep; // starting from pi/2 to -pi/2
-    xy = radius * cosf(stackAngle);        // r * cos(u)
-    z = radius * sinf(stackAngle);         // r * sin(u)
-
-    // add (sectorCount+1) vertices per stack
-    // the first and last vertices have same position and normal, but different tex coords
-    for (int j = 0; j <= sectorCount; ++j)
+    std::vector<int> verticesRow;
+    auto v = iy / (float)heightSegments;
+    auto uOffset = 0;
+    if (iy == 0 && thetaStart == 0)
     {
-      sectorAngle = j * sectorStep; // starting from 0 to 2pi
-
-      // vertex position (x, y, z)
-      x = xy * cosf(sectorAngle); // r * cos(u) * cos(v)
-      y = xy * sinf(sectorAngle); // r * cos(u) * sin(v)
-      vertices.push_back(x);
-      vertices.push_back(y);
-      vertices.push_back(z);
-
-      // normalized vertex normal (nx, ny, nz)
-      nx = x * lengthInv;
-      ny = y * lengthInv;
-      nz = z * lengthInv;
-      normals.push_back(nx);
-      normals.push_back(ny);
-      normals.push_back(nz);
+      uOffset = 0.5 / widthSegments;
     }
+    else if (iy == heightSegments && thetaEnd == M_PI)
+    {
+      uOffset = -0.5 / widthSegments;
+    }
+
+    for (size_t ix{0}; ix <= widthSegments; ix++)
+    {
+      auto u = ix / (float)widthSegments;
+      auto vertex = glm::vec3();
+      vertex.x = -radius * cos(phiStart + u * phiLength) * sin(thetaStart + v * thetaLength);
+      vertex.y = radius * cos(thetaStart + v * thetaLength);
+      vertex.z = radius * sin(phiStart + u * phiLength) * sin(thetaStart + v * thetaLength);
+      this->vertices.push_back(vertex);
+
+      // normal
+      auto normal = glm::normalize(glm::vec3(vertex));
+      this->normals.push_back(normal);
+
+      // uv
+      auto uv = glm::vec2(u + uOffset, 1.0f - v);
+      this->uvs.push_back(uv);
+
+      verticesRow.push_back(index++);
+    }
+    grid.push_back(verticesRow);
   }
+
+  std::cout << "vertices done" << std::endl;
 
   // indices
-  int k1, k2;
-  for (int i = 0; i < stackCount; ++i)
+
+  for (size_t iy{0}; iy < heightSegments; iy++)
   {
-    k1 = i * (sectorCount + 1); // beginning of current stack
-    k2 = k1 + sectorCount + 1;  // beginning of next stack
-
-    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2)
+    for (size_t ix{0}; ix < widthSegments; ix++)
     {
-      // 2 triangles per sector excluding first and last stacks
-      // k1 => k2 => k1+1
-      if (i != 0)
-      {
-        indices.push_back(k1);
-        indices.push_back(k2);
-        indices.push_back(k1 + 1);
-      }
+      auto a = grid.at(iy).at(ix + 1);
+      auto b = grid.at(iy).at(ix);
+      auto c = grid.at(iy + 1).at(ix);
+      auto d = grid.at(iy + 1).at(ix + 1);
 
-      // k1+1 => k2 => k2+1
-      if (i != (stackCount - 1))
+      if (iy != 0 || thetaStart > 0)
       {
-        indices.push_back(k1 + 1);
-        indices.push_back(k2);
-        indices.push_back(k2 + 1);
+        this->indices.push_back(a);
+        this->indices.push_back(b);
+        this->indices.push_back(d);
+      }
+      if (iy != heightSegments - 1 || thetaEnd < M_PI)
+      {
+        this->indices.push_back(b);
+        this->indices.push_back(c);
+        this->indices.push_back(d);
       }
     }
   }
+  std::cout << "indices done" << std::endl;
+  std::cout << "Vertices: " << vertices.size() << "\n";
 }

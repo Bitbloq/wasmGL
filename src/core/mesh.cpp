@@ -3,6 +3,10 @@
 
 Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
 {
+	colorsNeedUpdate = false;
+	facesNeedUpdate = false;
+	verticesNeedUpdate = false;
+	// faceVertexUvsNeedUpdate = false;
 }
 
 void Mesh::translate(glm::vec3 const &translation)
@@ -27,6 +31,22 @@ glm::f32 *Mesh::getModelPtr()
 	return glm::value_ptr(model);
 }
 
+void Mesh::computeFaces()
+{
+	for (size_t i{0}; i < indices.size(); i += 3)
+	{
+		glm::vec3 faceNormal = glm::cross(vertices[indices[i + 1]] - vertices[indices[i]], vertices[indices[i + 2]] - vertices[indices[i]]);
+		faceNormal = glm::normalize(faceNormal);
+
+		array<glm::vec3, 3> vertexNormals = {
+				faceNormal,
+				faceNormal,
+				faceNormal};
+
+		faces.push_back(make_shared<Face3>(indices[i], indices[i + 1], indices[i + 2], faceNormal, vertexNormals));
+	}
+}
+
 void Mesh::CreateMesh()
 {
 	indexCount = indices.size();
@@ -38,9 +58,19 @@ void Mesh::CreateMesh()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);																																		 // Bind the IBO
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices.at(0)) * indices.size(), indices.data(), GL_STATIC_DRAW); // Copy the index data to the buffer object
 
-	glGenBuffers(1, &VBO);																																										// Generate 1 buffer object
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);																																				// Bind the VBO
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices.at(0)) * vertices.size(), vertices.data(), GL_STATIC_DRAW); // Copy the vertex data to the buffer object
+	glGenBuffers(1, &VBO); // Generate 1 buffer object
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	// convert vertices to lineal vector
+	std::vector<GLfloat> vert;
+	for (auto v : vertices)
+	{
+		vert.push_back(v.x);
+		vert.push_back(v.y);
+		vert.push_back(v.z);
+	}
+	// Bind the VBO
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vert.at(0)) * vert.size(), vert.data(), GL_STATIC_DRAW); // Copy the vertex data to the buffer object
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // Vertex position
 	glEnableVertexAttribArray(0);													 // Enable the vertex position attribute

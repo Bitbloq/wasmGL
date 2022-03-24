@@ -1,0 +1,27 @@
+{
+  "name": "threeTest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node ./src/index.ts",
+    "start-inspect": "node --inspect-brk=0.0.0.0 -r ts-node/register ./src/index.ts",
+    "dev": "nodemon --exec node -r ts-node/register ./src/index.ts",
+    "dev-inspect": "nodemon --exec yarn run start-inspect",
+    "prod": "yarn run start"
+  },
+  "dependencies": {
+    "@types/node": "^17.0.23",
+    "@types/three": "^0.138.0",
+    "performance-now": "^2.1.0",
+    "three": "^0.107.0",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.3"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
