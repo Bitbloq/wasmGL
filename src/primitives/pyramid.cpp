@@ -21,7 +21,7 @@ Pyramid::~Pyramid()
 
 void Pyramid::createVertices()
 {
-    const auto sqrt3 = std::sqrt(3.0f);
+    const auto dxsqrt3 = std::sqrt(3.0f) * dimensions.side;
 
     indices = {
         0, 1, 2,
@@ -30,14 +30,14 @@ void Pyramid::createVertices()
         1, 3, 2};
 
     vertices = {
-        {-0.5f, -sqrt3 / 6.0f, 0.0f},
-        {0.5f,
-         -sqrt3 / 6.0f,
+        {-0.5f * dimensions.side, -dxsqrt3 / 6.0f, 0.0f},
+        {0.5f * dimensions.side,
+         -dxsqrt3 / 6.0f,
          0.0f},
         {0.0f,
-         sqrt3 / 3.0f,
+         dxsqrt3 / 3.0f,
          0.0f},
         {0.0f,
          0.0f,
-         1.0f}};
+         dimensions.height}};
 }

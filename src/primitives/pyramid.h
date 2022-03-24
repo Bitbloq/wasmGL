@@ -3,8 +3,10 @@
 
 #include "../core/mesh.h"
 
-struct PyramidDimensions
+class PyramidDimensions
 {
+public:
+  PyramidDimensions(GLfloat side = 1.0f, GLfloat height = 1.0f) : side{side}, height{height} {}
   GLfloat side, height;
 };
 
