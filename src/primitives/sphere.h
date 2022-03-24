@@ -3,13 +3,28 @@
 
 #include "../core/mesh.h"
 
-struct SphereDimensions
+class SphereDimensions
 {
+public:
+  SphereDimensions(GLfloat radius = 1.0f) : radius{radius} {}
   GLfloat radius;
 };
 
-struct SphereParameters
+class SphereParameters
 {
+public:
+  SphereParameters(int widthSegments = 12,
+                   int heightSegments = 16,
+                   float phiStart = 0.0f,
+                   float phiLength = 2 * M_PI,
+                   float thetaStart = 0.0f,
+                   float thetaLength = M_PI)
+      : widthSegments{widthSegments},
+        heightSegments{heightSegments},
+        phiStart{phiStart},
+        phiLength{phiLength},
+        thetaStart{thetaStart},
+        thetaLength{thetaLength} {}
   int widthSegments;
   int heightSegments;
   float phiStart;
@@ -21,7 +36,7 @@ struct SphereParameters
 class Sphere : public Mesh
 {
 public:
-  Sphere(SphereDimensions const &dimensions = {1.0f}, SphereParameters const &parameters = {6, 8, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  Sphere(SphereDimensions const &dimensions = SphereDimensions{1.0f}, SphereParameters const &parameters = SphereParameters{});
   Sphere(Sphere const &Sphere);
   ~Sphere();
 
