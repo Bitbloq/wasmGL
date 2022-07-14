@@ -25,7 +25,7 @@
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 
-#include "./primitives/createfunctions.h"
+#include "./core/functions.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -73,13 +73,13 @@ void CreateObjects()
   auto sphere2 = createSphere(SphereDimensions{0.5f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
   auto cube1 = createBox(BoxDimensions{1.0f});
 
-  auto csgObj = cube1->subtract(sphere1);
+  // auto csgObj = cube1->subtract(sphere1);
 
-  csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
+  // csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
 
-    // add to mesh list
-  meshList.push_back(csgObj);
-  meshList.push_back(sphere2);
+  // add to mesh list
+  meshList.push_back(cube1);
+  meshList.push_back(sphere1);
 }
 
 void CreateShaders()
@@ -137,6 +137,9 @@ void mainloop(glm::mat4 &projection)
   std::cout << "FPS: " << fps << std::endl;
 #endif
 
+  rotate(meshList[0], glm::vec3(0.0f, glm::radians(1.0f), 0.0f));
+  auto csg = meshList[0]->subtract(meshList[1]);
+
   // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
   // Get + Handle User Input
@@ -156,12 +159,16 @@ void mainloop(glm::mat4 &projection)
   // glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
   glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 
-  for (auto mesh : meshList)
-  {
-    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, mesh->getModelPtr());
-    glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-    mesh->RenderMesh();
-  }
+  // for (auto mesh : meshList)
+  // {
+  //   glUniformMatrix4fv(uniformModel, 1, GL_FALSE, mesh->getModelPtr());
+  //   glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+  //   mesh->RenderMesh();
+  // }
+
+  glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
+  glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+  csg->RenderMesh();
 
   glUseProgram(0);
   mainWindow.swapBuffers();
