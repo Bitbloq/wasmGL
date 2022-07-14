@@ -1,5 +1,6 @@
 #include "mesh.h"
 #include <iostream>
+#include "../threecsg/threebsp.h"
 
 Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
 {
@@ -7,6 +8,18 @@ Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
 	facesNeedUpdate = false;
 	verticesNeedUpdate = false;
 	// faceVertexUvsNeedUpdate = false;
+}
+
+void Mesh::computeThreeBSP()
+{
+	threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
+}
+
+shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
+{
+	auto csg = threeBSP->subtract(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
 }
 
 void Mesh::translate(glm::vec3 const &translation)
@@ -47,7 +60,7 @@ void Mesh::computeFaces()
 	}
 }
 
-void Mesh::CreateMesh()
+void Mesh::createMesh()
 {
 	indexCount = indices.size();
 

@@ -15,6 +15,7 @@ public:
   void keyControl(std::shared_ptr<std::array<bool, 1024>> keys, GLfloat deltaTime);
   void mouseControl(GLfloat xChange, GLfloat yChange);
   glm::mat4 calculateViewMatrix();
+  glm::vec3 getPosition() const { return position; }
 
 private:
   glm::vec3 position;

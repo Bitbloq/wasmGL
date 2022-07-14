@@ -1,12 +1,13 @@
 #include "box.h"
 #include <iostream>
 #include <math.h>
+#include "../threecsg/threebsp.h"
 
 Box::Box(BoxDimensions dimensions) : Mesh{}, dimensions{dimensions}
 {
   createVertices();
   computeFaces();
-  CreateMesh();
+  createMesh();
 }
 
 Box::~Box()

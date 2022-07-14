@@ -73,33 +73,24 @@ static const char *fShader =
 void CreateObjects()
 {
 
-  auto init1 = std::chrono::high_resolution_clock::now();
   auto sphere1 = std::make_shared<Sphere>(SphereDimensions{0.65f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  sphere1->computeThreeBSP();
   auto sphere2 = std::make_shared<Sphere>(SphereDimensions{0.5f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
 
-  auto end1 = std::chrono::high_resolution_clock::now();
-
-  std::cout << "Sphere Geometry: " << std::chrono::duration_cast<std::chrono::microseconds>(end1 - init1).count() / 1000. << " ms" << std::endl;
-
   auto cube1 = std::make_shared<Box>();
+  cube1->computeThreeBSP();
 
-  auto init2 = std::chrono::high_resolution_clock::now();
-  auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
-  auto end2 = std::chrono::high_resolution_clock::now();
+  // auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
+  // sphere1->setThreeBSP(sphere1Tree);
 
-  auto cube1Tree = make_shared<ThreeBSP>(ThreeBSP(cube1));
+  // auto cube1Tree = make_shared<ThreeBSP>(ThreeBSP(cube1));
+  // cube1->setThreeBSP(cube1Tree);
 
-  auto init3 = std::chrono::high_resolution_clock::now();
-  auto csg = cube1Tree->subtract(sphere1Tree);
-  std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+  // auto csg = cube1Tree->subtract(sphere1Tree);
+  // std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+
+  auto csgObj = cube1->subtract(sphere1);
   csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
-  auto end3 = std::chrono::high_resolution_clock::now();
-
-#ifdef LOGGING
-  std::cout << "Sphere Tree: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - init2).count() / 1000. << " ms" << std::endl;
-  std::cout << "Intersect: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init3).count() / 1000. << " ms" << std::endl;
-  std::cout << "Total: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init1).count() / 1000. << " ms" << std::endl;
-#endif
 
   meshList.push_back(csgObj);
   meshList.push_back(sphere2);
@@ -123,7 +114,7 @@ int main()
   CreateObjects();
   CreateShaders();
 
-  camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
+  camera = Camera(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
 
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 

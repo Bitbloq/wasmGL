@@ -12,7 +12,9 @@
 
 using namespace std;
 
-class Mesh
+class ThreeBSP;
+
+class Mesh : public std::enable_shared_from_this<Mesh>
 {
 	friend class ThreeBSP;
 
@@ -30,12 +32,22 @@ public:
 	glm::mat4 getModelMatrix() const { return model; }
 
 	glm::f32 *getModelPtr();
+
+	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp) { threeBSP = bsp; }
+	shared_ptr<ThreeBSP> getThreeBSP() const { return threeBSP; }
+
+	shared_ptr<Mesh> subtract(shared_ptr<Mesh> const &other);
+
+	void computeThreeBSP();
+
 	~Mesh();
 
 protected:
-	void CreateMesh();
+	void createMesh();
 	void ClearMesh();
 	void computeFaces();
+
+	shared_ptr<ThreeBSP> threeBSP;
 
 	GLuint VAO,
 			VBO, IBO;

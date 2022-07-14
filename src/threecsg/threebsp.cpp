@@ -221,7 +221,7 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
     mesh->indices.push_back(face->b);
     mesh->indices.push_back(face->c);
   }
-  mesh->CreateMesh();
+  mesh->createMesh();
   return mesh;
 }
 
