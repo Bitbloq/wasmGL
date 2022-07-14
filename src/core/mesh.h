@@ -45,6 +45,8 @@ public:
 	shared_ptr<ThreeBSP> getThreeBSP() const { return threeBSP; }
 
 	shared_ptr<Mesh> subtract(shared_ptr<Mesh> const &other);
+	shared_ptr<Mesh> add(shared_ptr<Mesh> const &other);
+	shared_ptr<Mesh> intersect(shared_ptr<Mesh> const &other);
 
 	std::function<void()> computeThreeBSPLambda;
 	void computeThreeBSP();

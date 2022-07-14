@@ -32,6 +32,30 @@ shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
 	return csgObj;
 }
 
+shared_ptr<Mesh> Mesh::add(shared_ptr<Mesh> const &other)
+{
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	auto csg = threeBSP->add(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
+}
+
+shared_ptr<Mesh> Mesh::intersect(shared_ptr<Mesh> const &other)
+{
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	auto csg = threeBSP->intersect(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
+}
+
 void Mesh::translate(glm::vec3 const &translation)
 {
 	model = glm::translate(model, translation);
