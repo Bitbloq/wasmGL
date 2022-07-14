@@ -166,7 +166,7 @@ void mainloop(glm::mat4 &projection)
   //   mesh->RenderMesh();
   // }
 
-  glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
+  glUniformMatrix4fv(uniformModel, 1, GL_FALSE, csg->getModelPtr());
   glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
   csg->RenderMesh();
 
