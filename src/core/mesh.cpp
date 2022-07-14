@@ -1,13 +1,18 @@
 #include "mesh.h"
 #include <iostream>
 #include "../threecsg/threebsp.h"
+#include <thread>
 
 Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
 {
 	colorsNeedUpdate = false;
 	facesNeedUpdate = false;
 	verticesNeedUpdate = false;
-	// faceVertexUvsNeedUpdate = false;
+	threeBSPDone = false;
+	computeThreeBSPLambda = [&]()
+	{
+		threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
+	};
 }
 
 void Mesh::computeThreeBSP()
@@ -17,6 +22,11 @@ void Mesh::computeThreeBSP()
 
 shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
 {
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
 	auto csg = threeBSP->subtract(other->getThreeBSP());
 	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
 	return csgObj;

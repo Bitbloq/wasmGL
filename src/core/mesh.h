@@ -7,6 +7,10 @@
 #include "glm/gtc/type_ptr.hpp"
 #include <vector>
 #include <string>
+#include <functional>
+#include <atomic>
+#include <iostream>
+
 #include "./color.h"
 #include "./face3.h"
 
@@ -33,12 +37,18 @@ public:
 
 	glm::f32 *getModelPtr();
 
-	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp) { threeBSP = bsp; }
+	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp)
+	{
+		threeBSP = bsp;
+		threeBSPDone = true;
+	}
 	shared_ptr<ThreeBSP> getThreeBSP() const { return threeBSP; }
 
 	shared_ptr<Mesh> subtract(shared_ptr<Mesh> const &other);
 
+	std::function<void()> computeThreeBSPLambda;
 	void computeThreeBSP();
+	std::atomic<bool> threeBSPDone; // Use an atomic flag.
 
 	~Mesh();
 

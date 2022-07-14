@@ -17,10 +17,7 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #include "window/window.h"
-#include "core/mesh.h"
-#include "primitives/pyramid.h"
-#include "primitives/sphere.h"
-#include "primitives/box.h"
+// #include "core/mesh.h"
 
 #include "shaders/shader.h"
 
@@ -28,7 +25,7 @@
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 
-#include <chrono>
+#include "./primitives/createfunctions.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -72,26 +69,15 @@ static const char *fShader =
 
 void CreateObjects()
 {
-
-  auto sphere1 = std::make_shared<Sphere>(SphereDimensions{0.65f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
-  sphere1->computeThreeBSP();
-  auto sphere2 = std::make_shared<Sphere>(SphereDimensions{0.5f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
-
-  auto cube1 = std::make_shared<Box>();
-  cube1->computeThreeBSP();
-
-  // auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
-  // sphere1->setThreeBSP(sphere1Tree);
-
-  // auto cube1Tree = make_shared<ThreeBSP>(ThreeBSP(cube1));
-  // cube1->setThreeBSP(cube1Tree);
-
-  // auto csg = cube1Tree->subtract(sphere1Tree);
-  // std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+  auto sphere1 = createSphere(SphereDimensions{0.65f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  auto sphere2 = createSphere(SphereDimensions{0.5f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  auto cube1 = createBox(BoxDimensions{1.0f});
 
   auto csgObj = cube1->subtract(sphere1);
+
   csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
 
+    // add to mesh list
   meshList.push_back(csgObj);
   meshList.push_back(sphere2);
 }

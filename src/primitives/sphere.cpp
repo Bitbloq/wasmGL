@@ -40,7 +40,7 @@ void Sphere::createVertices()
     {
       uOffset = 0.5 / widthSegments;
     }
-    else if (iy == heightSegments && thetaEnd == M_PI)
+    else if (iy == heightSegments && thetaEnd >= M_PI)
     {
       uOffset = -0.5 / widthSegments;
     }
