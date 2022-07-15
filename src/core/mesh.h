@@ -33,14 +33,13 @@ public:
 	void rotate(glm::vec3 const &rotation);
 	void scale(glm::vec3 const &scale);
 
-	glm::mat4 getModelMatrix() const { return model; }
+	shared_ptr<glm::mat4> getModelMatrix() const { return model; }
 
 	glm::f32 *getModelPtr();
 
 	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp)
 	{
 		threeBSP = bsp;
-		threeBSPDone = true;
 	}
 	shared_ptr<ThreeBSP> getThreeBSP() const { return threeBSP; }
 
@@ -51,6 +50,7 @@ public:
 	std::function<void()> computeThreeBSPLambda;
 	void computeThreeBSP();
 	std::atomic<bool> threeBSPDone; // Use an atomic flag.
+	void setModel(shared_ptr<glm::mat4> const &model) { this->model = model; }
 
 	~Mesh();
 
@@ -100,7 +100,7 @@ protected:
 	std::vector<int> indices;
 	// std::vector<glm::vec2> uvs;
 
-	glm::mat4 model;
+	shared_ptr<glm::mat4> model;
 
 	int id; // unique id for this instance
 	string uuid;

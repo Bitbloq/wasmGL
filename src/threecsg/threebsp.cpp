@@ -24,7 +24,8 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
   _node = make_shared<Node>();
   _vertex = make_shared<Vertex>();
 
-  matrix = make_shared<glm::mat4x4>(glm::mat4x4(mesh->getModelMatrix()));
+  // matrix = make_shared<glm::mat4x4>(glm::mat4x4(*mesh->getModelMatrix()));
+  matrix = mesh->getModelMatrix();
   auto geometry = mesh;
   vector<shared_ptr<Polygon>> polygons;
 
@@ -221,7 +222,9 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
     mesh->indices.push_back(face->b);
     mesh->indices.push_back(face->c);
   }
+  mesh->setModel(matrix);
   mesh->createMesh();
+
   return mesh;
 }
 

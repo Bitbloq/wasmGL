@@ -3,12 +3,12 @@
 #include "../threecsg/threebsp.h"
 #include <thread>
 
-Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
+Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{make_shared<glm::mat4>(1.0f)}
 {
 	colorsNeedUpdate = false;
 	facesNeedUpdate = false;
 	verticesNeedUpdate = false;
-	threeBSPDone = false;
+	// threeBSPDone = false;
 	computeThreeBSPLambda = [&]()
 	{
 		threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
@@ -58,25 +58,25 @@ shared_ptr<Mesh> Mesh::intersect(shared_ptr<Mesh> const &other)
 
 void Mesh::translate(glm::vec3 const &translation)
 {
-	model = glm::translate(model, translation);
+	*model = glm::translate(*model, translation);
 }
 
 void Mesh::rotate(glm::vec3 const &rotation)
 {
 	threeBSPDone = false;
-	model = glm::rotate(model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-	model = glm::rotate(model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-	model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+	*model = glm::rotate(*model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+	*model = glm::rotate(*model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+	*model = glm::rotate(*model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
 void Mesh::scale(glm::vec3 const &scale)
 {
-	model = glm::scale(model, scale);
+	*model = glm::scale(*model, scale);
 }
 
 glm::f32 *Mesh::getModelPtr()
 {
-	return glm::value_ptr(model);
+	return glm::value_ptr(*model);
 }
 
 void Mesh::computeFaces()
