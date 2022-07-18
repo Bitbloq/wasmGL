@@ -6,13 +6,13 @@ Pyramid::Pyramid(PyramidDimensions dimensions) : Mesh{}, dimensions{dimensions}
 {
     createVertices();
     computeFaces();
-    CreateMesh();
+    createMesh();
 }
 
 Pyramid::Pyramid(Pyramid const &pyramid) : Mesh{}, dimensions{pyramid.dimensions}
 {
     createVertices();
-    CreateMesh();
+    createMesh();
 }
 
 Pyramid::~Pyramid()

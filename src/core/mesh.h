@@ -7,12 +7,18 @@
 #include "glm/gtc/type_ptr.hpp"
 #include <vector>
 #include <string>
+#include <functional>
+#include <atomic>
+#include <iostream>
+
 #include "./color.h"
 #include "./face3.h"
 
 using namespace std;
 
-class Mesh
+class ThreeBSP;
+
+class Mesh : public std::enable_shared_from_this<Mesh>
 {
 	friend class ThreeBSP;
 
@@ -27,15 +33,33 @@ public:
 	void rotate(glm::vec3 const &rotation);
 	void scale(glm::vec3 const &scale);
 
-	glm::mat4 getModelMatrix() const { return model; }
+	shared_ptr<glm::mat4> getModelMatrix() const { return model; }
 
 	glm::f32 *getModelPtr();
+
+	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp)
+	{
+		threeBSP = bsp;
+	}
+	shared_ptr<ThreeBSP> getThreeBSP() const { return threeBSP; }
+
+	shared_ptr<Mesh> subtract(shared_ptr<Mesh> const &other);
+	shared_ptr<Mesh> add(shared_ptr<Mesh> const &other);
+	shared_ptr<Mesh> intersect(shared_ptr<Mesh> const &other);
+
+	std::function<void()> computeThreeBSPLambda;
+	void computeThreeBSP();
+	std::atomic<bool> threeBSPDone; // Use an atomic flag.
+	void setModel(shared_ptr<glm::mat4> const &model) { this->model = model; }
+
 	~Mesh();
 
 protected:
-	void CreateMesh();
+	void createMesh();
 	void ClearMesh();
 	void computeFaces();
+
+	shared_ptr<ThreeBSP> threeBSP;
 
 	GLuint VAO,
 			VBO, IBO;
@@ -76,7 +100,7 @@ protected:
 	std::vector<int> indices;
 	// std::vector<glm::vec2> uvs;
 
-	glm::mat4 model;
+	shared_ptr<glm::mat4> model;
 
 	int id; // unique id for this instance
 	string uuid;

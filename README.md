@@ -12,6 +12,13 @@ For developing and testins purpose it will also compile to desktop applications 
 ```
 
 ### Native C++ build
+Install dependencies
+
+```
+sudo apt install libglew-dev libglm-dev libglfw3-dev 
+```
+
+Build using cmake
 ```
 cd build
 cmake ..

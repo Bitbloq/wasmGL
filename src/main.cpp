@@ -15,12 +15,10 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include <glm/gtx/string_cast.hpp>
 
 #include "window/window.h"
-#include "core/mesh.h"
-#include "primitives/pyramid.h"
-#include "primitives/sphere.h"
-#include "primitives/box.h"
+// #include "core/mesh.h"
 
 #include "shaders/shader.h"
 
@@ -28,7 +26,7 @@
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 
-#include <chrono>
+#include "./core/functions.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -72,37 +70,11 @@ static const char *fShader =
 
 void CreateObjects()
 {
+  auto sphere1 = createSphere(SphereDimensions{0.4f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  auto cube1 = createBox(BoxDimensions{0.7f});
 
-  auto init1 = std::chrono::high_resolution_clock::now();
-  auto sphere1 = std::make_shared<Sphere>(SphereDimensions{0.65f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
-  auto sphere2 = std::make_shared<Sphere>(SphereDimensions{0.5f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
-
-  auto end1 = std::chrono::high_resolution_clock::now();
-
-  std::cout << "Sphere Geometry: " << std::chrono::duration_cast<std::chrono::microseconds>(end1 - init1).count() / 1000. << " ms" << std::endl;
-
-  auto cube1 = std::make_shared<Box>();
-
-  auto init2 = std::chrono::high_resolution_clock::now();
-  auto sphere1Tree = make_shared<ThreeBSP>(ThreeBSP(sphere1));
-  auto end2 = std::chrono::high_resolution_clock::now();
-
-  auto cube1Tree = make_shared<ThreeBSP>(ThreeBSP(cube1));
-
-  auto init3 = std::chrono::high_resolution_clock::now();
-  auto csg = cube1Tree->subtract(sphere1Tree);
-  std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
-  csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
-  auto end3 = std::chrono::high_resolution_clock::now();
-
-#ifdef LOGGING
-  std::cout << "Sphere Tree: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - init2).count() / 1000. << " ms" << std::endl;
-  std::cout << "Intersect: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init3).count() / 1000. << " ms" << std::endl;
-  std::cout << "Total: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - init1).count() / 1000. << " ms" << std::endl;
-#endif
-
-  meshList.push_back(csgObj);
-  meshList.push_back(sphere2);
+  meshList.push_back(cube1);
+  meshList.push_back(sphere1);
 }
 
 void CreateShaders()
@@ -114,16 +86,19 @@ void CreateShaders()
 
 void emcmainloop(void *mainLoopArg);
 void mainloop(glm::mat4 &projection);
+// #ifdef __EMSCRIPTEN__
+// EMSCRIPTEN_KEEPALIVE
+// #endif
 int main()
 {
 
   mainWindow = Window(800, 600);
   mainWindow.Initialise();
 
-  CreateObjects();
+  // CreateObjects();
   CreateShaders();
 
-  camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
+  camera = Camera(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
 
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)mainWindow.getBufferWidth() / mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
@@ -176,7 +151,6 @@ void mainloop(glm::mat4 &projection)
   uniformProjection = shaderList[0].GetProjectionLocation();
   uniformView = shaderList[0].GetViewLocation();
 
-  // glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
   glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 
   for (auto mesh : meshList)
@@ -188,4 +162,28 @@ void mainloop(glm::mat4 &projection)
 
   glUseProgram(0);
   mainWindow.swapBuffers();
+}
+
+// external functions to call from js
+
+extern "C" void
+#ifdef _EMSCRIPTEN_
+    EMSCRIPTEN_KEEPALIVE
+#endif
+    addCube(int width, int height, int depth)
+{
+  auto cube = createBox(BoxDimensions{
+      static_cast<GLfloat>(width), static_cast<GLfloat>(height), static_cast<GLfloat>(depth)});
+  cube->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
+  meshList.push_back(cube);
+}
+
+extern "C" void
+#ifdef _EMSCRIPTEN_
+    EMSCRIPTEN_KEEPALIVE
+#endif
+    addSphere()
+{
+  auto sphere = createSphere(SphereDimensions{0.4f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  meshList.push_back(sphere);
 }

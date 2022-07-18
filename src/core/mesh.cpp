@@ -1,34 +1,82 @@
 #include "mesh.h"
 #include <iostream>
+#include "../threecsg/threebsp.h"
+#include <thread>
 
-Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{glm::mat4(1.0f)}
+Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{make_shared<glm::mat4>(1.0f)}
 {
 	colorsNeedUpdate = false;
 	facesNeedUpdate = false;
 	verticesNeedUpdate = false;
-	// faceVertexUvsNeedUpdate = false;
+	// threeBSPDone = false;
+	computeThreeBSPLambda = [&]()
+	{
+		threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
+	};
+}
+
+void Mesh::computeThreeBSP()
+{
+	threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
+}
+
+shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
+{
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	auto csg = threeBSP->subtract(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
+}
+
+shared_ptr<Mesh> Mesh::add(shared_ptr<Mesh> const &other)
+{
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	auto csg = threeBSP->add(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
+}
+
+shared_ptr<Mesh> Mesh::intersect(shared_ptr<Mesh> const &other)
+{
+	while (!threeBSPDone || !other->threeBSPDone)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	auto csg = threeBSP->intersect(other->getThreeBSP());
+	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
+	return csgObj;
 }
 
 void Mesh::translate(glm::vec3 const &translation)
 {
-	model = glm::translate(model, translation);
+	*model = glm::translate(*model, translation);
 }
 
 void Mesh::rotate(glm::vec3 const &rotation)
 {
-	model = glm::rotate(model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-	model = glm::rotate(model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-	model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+	threeBSPDone = false;
+	*model = glm::rotate(*model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+	*model = glm::rotate(*model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+	*model = glm::rotate(*model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
 void Mesh::scale(glm::vec3 const &scale)
 {
-	model = glm::scale(model, scale);
+	*model = glm::scale(*model, scale);
 }
 
 glm::f32 *Mesh::getModelPtr()
 {
-	return glm::value_ptr(model);
+	return glm::value_ptr(*model);
 }
 
 void Mesh::computeFaces()
@@ -47,7 +95,7 @@ void Mesh::computeFaces()
 	}
 }
 
-void Mesh::CreateMesh()
+void Mesh::createMesh()
 {
 	indexCount = indices.size();
 
