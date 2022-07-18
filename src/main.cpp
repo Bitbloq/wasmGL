@@ -71,19 +71,10 @@ static const char *fShader =
 void CreateObjects()
 {
   auto sphere1 = createSphere(SphereDimensions{0.4f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
-  auto sphere2 = createSphere(SphereDimensions{0.3f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
   auto cube1 = createBox(BoxDimensions{0.7f});
-  rotate(cube1, glm::vec3{0.0f, glm::radians(45.0f), 0.0f});
 
-  // auto csgObj = cube1->subtract(sphere1);
-
-  // csgObj->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
-
-  // add to mesh list
-  translate(cube1, glm::vec3(-1.0f, 0.0f, 0.0f));
   meshList.push_back(cube1);
   meshList.push_back(sphere1);
-  meshList.push_back(sphere2);
 }
 
 void CreateShaders()
@@ -95,13 +86,16 @@ void CreateShaders()
 
 void emcmainloop(void *mainLoopArg);
 void mainloop(glm::mat4 &projection);
+// #ifdef __EMSCRIPTEN__
+// EMSCRIPTEN_KEEPALIVE
+// #endif
 int main()
 {
 
   mainWindow = Window(800, 600);
   mainWindow.Initialise();
 
-  CreateObjects();
+  // CreateObjects();
   CreateShaders();
 
   camera = Camera(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
@@ -141,9 +135,6 @@ void mainloop(glm::mat4 &projection)
   std::cout << "FPS: " << fps << std::endl;
 #endif
 
-  translate(meshList[0], glm::vec3(0.005f, 0.0f, 0.0f));
-  auto csg = meshList[0]->subtract(meshList[1]);
-
   // std::cout << deltaTime << std::endl;
   GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
   // Get + Handle User Input
@@ -160,31 +151,39 @@ void mainloop(glm::mat4 &projection)
   uniformProjection = shaderList[0].GetProjectionLocation();
   uniformView = shaderList[0].GetViewLocation();
 
-  // glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
   glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 
-  // for (auto mesh : meshList)
-  // {
-  //   glUniformMatrix4fv(uniformModel, 1, GL_FALSE, mesh->getModelPtr());
-  //   glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-  //   mesh->RenderMesh();
-  // }
-
-  // glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(0)->getModelPtr());
-  // glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-  // // std::cout << glm::to_string(*csg->getModelMatrix()) << std::endl;
-  // meshList.at(0)->RenderMesh();
-
-  glUniformMatrix4fv(uniformModel, 1, GL_FALSE, meshList.at(2)->getModelPtr());
-  glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-  // std::cout << glm::to_string(*csg->getModelMatrix()) << std::endl;
-  meshList.at(2)->RenderMesh();
-
-  glUniformMatrix4fv(uniformModel, 1, GL_FALSE, csg->getModelPtr());
-  glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-  // std::cout << glm::to_string(*csg->getModelMatrix()) << std::endl;
-  csg->RenderMesh();
+  for (auto mesh : meshList)
+  {
+    glUniformMatrix4fv(uniformModel, 1, GL_FALSE, mesh->getModelPtr());
+    glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+    mesh->RenderMesh();
+  }
 
   glUseProgram(0);
   mainWindow.swapBuffers();
+}
+
+// external functions to call from js
+
+extern "C" void
+#ifdef _EMSCRIPTEN_
+    EMSCRIPTEN_KEEPALIVE
+#endif
+    addCube(int width, int height, int depth)
+{
+  auto cube = createBox(BoxDimensions{
+      static_cast<GLfloat>(width), static_cast<GLfloat>(height), static_cast<GLfloat>(depth)});
+  cube->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
+  meshList.push_back(cube);
+}
+
+extern "C" void
+#ifdef _EMSCRIPTEN_
+    EMSCRIPTEN_KEEPALIVE
+#endif
+    addSphere()
+{
+  auto sphere = createSphere(SphereDimensions{0.4f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+  meshList.push_back(sphere);
 }
