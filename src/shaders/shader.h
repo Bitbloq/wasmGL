@@ -31,6 +31,8 @@ public:
 	/** For line / wire pass (single mvp). */
 	GLuint GetMVPLocation() const { return uniformMVP; }
 
+	GLuint GetProgramId() const { return shaderID; }
+
 	void UseShader();
 	void ClearShader();
 

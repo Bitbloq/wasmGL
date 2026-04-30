@@ -19,6 +19,7 @@
 #include "window/window.h"
 #include "shaders/shader.h"
 #include "camera/orbit_camera.h"
+#include "grid/base_grid.h"
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 #include "core/mesh.h"
@@ -46,6 +47,7 @@ static int g_boolOperandB{-1};
 
 Shader litShader;
 Shader lineShader;
+BaseGridRenderer g_baseGrid;
 OrbitCamera orbitCamera(glm::vec3(0.0f, 0.0f, 2.4f), glm::vec3(0.0f));
 GLfloat deltaTime{0.0f};
 GLfloat lastTime{0.0f};
@@ -197,6 +199,7 @@ int main()
 	mainWindow.Initialise();
 
 	CreateShaders();
+	g_baseGrid.initShaders();
 
 	refreshProjection();
 
@@ -258,6 +261,7 @@ void mainloop()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 view = orbitCamera.calculateViewMatrix();
+	g_baseGrid.render(g_projection, view);
 	glm::vec3 viewPos = orbitCamera.getPosition();
 
 	litShader.UseShader();
@@ -784,6 +788,11 @@ void cameraNudgeViewPitchDegrees(float deltaDeg)
 void cameraNudgePositionView(float alongFront, float alongRight, float alongUp)
 {
 	orbitCamera.nudgePositionView(alongFront, alongRight, alongUp);
+}
+
+void setBaseGridVisible(int visible)
+{
+	g_baseGrid.setVisible(visible != 0);
 }
 
 }

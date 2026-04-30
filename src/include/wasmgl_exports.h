@@ -79,6 +79,9 @@ WASMGL_KEEP void performBooleanUnion(void);
 WASMGL_KEEP void performBooleanDifference(void);
 WASMGL_KEEP void performBooleanIntersection(void);
 
+/** 1 = show Bitbloq-style base grid (XY plane), 0 = hide. */
+WASMGL_KEEP void setBaseGridVisible(int visible);
+
 #ifdef __cplusplus
 }
 #endif
