@@ -10,7 +10,11 @@
 class OrbitCamera
 {
 public:
-  explicit OrbitCamera(glm::vec3 const &worldPosition = glm::vec3(0.0f, 0.0f, 2.4f),
+  /**
+   * Default eye: above the default BaseGrid (±10 in X/Y), diagonal in XY, tilted from +Z so the
+   * full grid is in frame at ~48° vertical FOV (adjust radius if grid size changes).
+   */
+  explicit OrbitCamera(glm::vec3 const &worldPosition = glm::vec3(13.5f, 13.5f, 15.5f),
                        glm::vec3 const &target = glm::vec3(0.0f));
 
   glm::mat4 calculateViewMatrix() const;
