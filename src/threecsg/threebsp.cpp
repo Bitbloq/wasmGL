@@ -224,6 +224,7 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
   }
   mesh->setModel(matrix);
   mesh->createMesh();
+  mesh->computeThreeBSP();
 
   return mesh;
 }

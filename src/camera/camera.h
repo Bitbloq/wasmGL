@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include <memory>
-#include <GL/glew.h>
+#include "wasmgl_gl.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 

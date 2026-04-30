@@ -1,31 +1,98 @@
 #include "mesh.h"
 #include <iostream>
+#include <set>
+#include <algorithm>
 #include "../threecsg/threebsp.h"
-#include <thread>
 
-Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{make_shared<glm::mat4>(1.0f)}
+Mesh::Mesh() : VAO{0}, VBO{0}, IBO{0}, indexCount{0}, model{make_shared<glm::mat4>(1.0f)}, threeBSPDone{false}
 {
 	colorsNeedUpdate = false;
 	facesNeedUpdate = false;
 	verticesNeedUpdate = false;
-	// threeBSPDone = false;
 	computeThreeBSPLambda = [&]()
 	{
 		threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
 	};
 }
 
+void Mesh::ensureVertexNormals()
+{
+	if (vertices.empty())
+		return;
+	if (normals.size() == vertices.size())
+	{
+		for (auto &n : normals)
+		{
+			if (glm::length(n) > 1e-6f)
+				n = glm::normalize(n);
+			else
+				n = glm::vec3(0.0f, 1.0f, 0.0f);
+		}
+		return;
+	}
+	normals.assign(vertices.size(), glm::vec3(0.0f));
+	for (auto const &f : faces)
+	{
+		glm::vec3 fn = glm::length(f->normal) > 1e-6f ? glm::normalize(f->normal) : glm::vec3(0.0f, 1.0f, 0.0f);
+		normals[f->a] += fn;
+		normals[f->b] += fn;
+		normals[f->c] += fn;
+	}
+	for (auto &n : normals)
+		n = glm::length(n) > 1e-6f ? glm::normalize(n) : glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+void Mesh::buildWireframeEdgeBuffer()
+{
+	if (indices.size() < 3)
+	{
+		edgeIndexCount = 0;
+		return;
+	}
+
+	std::set<std::pair<int, int>> edgeSet;
+	for (size_t i = 0; i + 2 < indices.size(); i += 3)
+	{
+		int tri[3] = {indices[i], indices[i + 1], indices[i + 2]};
+		for (int e = 0; e < 3; ++e)
+		{
+			int a = tri[e];
+			int b = tri[(e + 1) % 3];
+			if (a > b)
+				std::swap(a, b);
+			edgeSet.insert({a, b});
+		}
+	}
+
+	std::vector<unsigned int> lineIndices;
+	lineIndices.reserve(edgeSet.size() * 2);
+	for (auto const &pr : edgeSet)
+	{
+		lineIndices.push_back(static_cast<unsigned int>(pr.first));
+		lineIndices.push_back(static_cast<unsigned int>(pr.second));
+	}
+
+	edgeIndexCount = static_cast<GLsizei>(lineIndices.size());
+	if (edgeIBO != 0)
+		glDeleteBuffers(1, &edgeIBO);
+	glGenBuffers(1, &edgeIBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edgeIBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, lineIndices.size() * sizeof(unsigned int), lineIndices.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
 void Mesh::computeThreeBSP()
 {
 	threeBSP = make_shared<ThreeBSP>(ThreeBSP(shared_from_this()));
+	threeBSPDone = true;
 }
 
 shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
 {
-	while (!threeBSPDone || !other->threeBSPDone)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
+	if (!threeBSPDone)
+		computeThreeBSP();
+	if (!other->threeBSPDone)
+		other->computeThreeBSP();
 
 	auto csg = threeBSP->subtract(other->getThreeBSP());
 	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
@@ -34,10 +101,10 @@ shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
 
 shared_ptr<Mesh> Mesh::add(shared_ptr<Mesh> const &other)
 {
-	while (!threeBSPDone || !other->threeBSPDone)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
+	if (!threeBSPDone)
+		computeThreeBSP();
+	if (!other->threeBSPDone)
+		other->computeThreeBSP();
 
 	auto csg = threeBSP->add(other->getThreeBSP());
 	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
@@ -46,10 +113,10 @@ shared_ptr<Mesh> Mesh::add(shared_ptr<Mesh> const &other)
 
 shared_ptr<Mesh> Mesh::intersect(shared_ptr<Mesh> const &other)
 {
-	while (!threeBSPDone || !other->threeBSPDone)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
+	if (!threeBSPDone)
+		computeThreeBSP();
+	if (!other->threeBSPDone)
+		other->computeThreeBSP();
 
 	auto csg = threeBSP->intersect(other->getThreeBSP());
 	std::shared_ptr<CSGMesh> csgObj = csg->toMesh();
@@ -58,6 +125,7 @@ shared_ptr<Mesh> Mesh::intersect(shared_ptr<Mesh> const &other)
 
 void Mesh::translate(glm::vec3 const &translation)
 {
+	threeBSPDone = false;
 	*model = glm::translate(*model, translation);
 }
 
@@ -71,6 +139,7 @@ void Mesh::rotate(glm::vec3 const &rotation)
 
 void Mesh::scale(glm::vec3 const &scale)
 {
+	threeBSPDone = false;
 	*model = glm::scale(*model, scale);
 }
 
@@ -97,50 +166,78 @@ void Mesh::computeFaces()
 
 void Mesh::createMesh()
 {
-	indexCount = indices.size();
+	ensureVertexNormals();
 
-	glGenVertexArrays(1, &VAO); // Generate 1 vertex array object
-	glBindVertexArray(VAO);			// Bind the VAO
+	indexCount = static_cast<GLsizei>(indices.size());
 
-	glGenBuffers(1, &IBO);																																												 // Generate 1 buffer object
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);																																		 // Bind the IBO
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices.at(0)) * indices.size(), indices.data(), GL_STATIC_DRAW); // Copy the index data to the buffer object
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
 
-	glGenBuffers(1, &VBO); // Generate 1 buffer object
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &IBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-	// convert vertices to lineal vector
-	std::vector<GLfloat> vert;
-	for (auto v : vertices)
+	std::vector<GLfloat> interleaved;
+	interleaved.reserve(vertices.size() * 6);
+	for (size_t i = 0; i < vertices.size(); ++i)
 	{
-		vert.push_back(v.x);
-		vert.push_back(v.y);
-		vert.push_back(v.z);
+		interleaved.push_back(vertices[i].x);
+		interleaved.push_back(vertices[i].y);
+		interleaved.push_back(vertices[i].z);
+		glm::vec3 n = i < normals.size() ? normals[i] : glm::vec3(0.0f, 1.0f, 0.0f);
+		interleaved.push_back(n.x);
+		interleaved.push_back(n.y);
+		interleaved.push_back(n.z);
 	}
-	// Bind the VBO
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vert.at(0)) * vert.size(), vert.data(), GL_STATIC_DRAW); // Copy the vertex data to the buffer object
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // Vertex position
-	glEnableVertexAttribArray(0);													 // Enable the vertex position attribute
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, interleaved.size() * sizeof(GLfloat), interleaved.data(), GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);					// Unbind the VBO
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // Unbind the IBO
+	const GLsizei stride = 6 * static_cast<GLsizei>(sizeof(GLfloat));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void *>(0));
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void *>(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
 
-	glBindVertexArray(0); // Unbind the VAO
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	// Keep IBO bound to this VAO (do not bind 0 here).
+	glBindVertexArray(0);
+
+	buildWireframeEdgeBuffer();
 }
 
 void Mesh::RenderMesh()
 {
-
-	glBindVertexArray(VAO);											// Bind the VAO
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO); // Bind the IBO
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
 	glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+void Mesh::RenderWireframe()
+{
+	if (edgeIndexCount <= 0 || edgeIBO == 0)
+		return;
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	const GLsizei stride = 6 * static_cast<GLsizei>(sizeof(GLfloat));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void *>(0));
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edgeIBO);
+	glDrawElements(GL_LINES, edgeIndexCount, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 
 void Mesh::ClearMesh()
 {
+	if (edgeIBO != 0)
+	{
+		glDeleteBuffers(1, &edgeIBO);
+		edgeIBO = 0;
+	}
+	edgeIndexCount = 0;
+
 	if (IBO != 0)
 	{
 		glDeleteBuffers(1, &IBO);

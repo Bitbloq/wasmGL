@@ -1,80 +1,593 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WasmGL — escena</title>
   <style>
-    canvas {
-      margin: auto;
-      display: block;
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3d8bfd;
+      --accent-dim: #2a5fad;
+      --success: #3ecf8e;
+      --radius: 10px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
     }
 
-    .control-section {
-      margin: 10px auto;
-      width: fit-content;
-      font-family: "Courier New", Courier, monospace;
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+      gap: 0;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+      }
+    }
+
+    header.shell-header {
+      grid-column: 1 / -1;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #152028 0%, var(--bg) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    header.shell-header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    header.shell-header .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    aside.panel {
+      grid-column: 1;
+      padding: 16px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    @media (max-width: 900px) {
+      aside.panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: none;
+      }
+    }
+
+    main.stage {
+      grid-column: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a2838 0%, var(--bg) 70%);
+    }
+
+    @media (max-width: 900px) {
+      main.stage {
+        grid-column: 1;
+        min-height: 50vh;
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #243044;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2d3d56;
+      border-color: #4a5f7a;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent);
+    }
+
+    button.ghost {
+      background: transparent;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1218;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .grid-3 label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-align: center;
+      grid-column: span 3;
+      margin-top: 4px;
+    }
+
+    .grid-3:first-of-type label {
+      margin-top: 0;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #243044;
+      color: var(--muted);
+    }
+
+    canvas {
+      display: block;
+      width: min(100%, 920px);
+      height: auto;
+      max-height: min(70vh, 640px);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 8px 0 4px;
+    }
+
+    .field-label:first-of-type {
+      margin-top: 0;
+    }
+
+    .csg-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 10px 0 12px;
+      line-height: 1.4;
+    }
+
+    .csg-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .csg-row button {
+      width: 100%;
+      justify-content: center;
     }
   </style>
 </head>
 
 <body>
-  <div class="control-section">
-    <button id="cube">Add Cube</button>
-    <button id="sphere">Add Sphere</button>
-    <button id="fullscreen">Fullscreen</button>
+  <div class="app">
+    <header class="shell-header">
+      <h1>WasmGL</h1>
+      <span class="hint">Clic en el lienzo: alternar orbitar cámara · Transformar un objeto · Dos operandos para CSG</span>
+    </header>
+
+    <aside class="panel" aria-label="Controles">
+      <div class="card">
+        <h2>Crear</h2>
+        <div class="btn-row">
+          <button type="button" id="btnCube" class="primary">+ Cubo</button>
+          <button type="button" id="btnSphere" class="primary">+ Esfera</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Selección</h2>
+        <select id="objectSelect" aria-label="Objeto en escena">
+          <option value="">— Sin objetos —</option>
+        </select>
+        <div class="btn-row">
+          <button type="button" id="btnDeselect" class="ghost" disabled>Quitar selección</button>
+        </div>
+      </div>
+
+      <div class="card" id="csgCard">
+        <h2>CSG <span class="badge">dos objetos</span></h2>
+        <label class="field-label" for="operandA">Operando A</label>
+        <select id="operandA" aria-label="Operando A para CSG">
+          <option value="">— Ninguno —</option>
+        </select>
+        <label class="field-label" for="operandB">Operando B</label>
+        <select id="operandB" aria-label="Operando B para CSG">
+          <option value="">— Ninguno —</option>
+        </select>
+        <p class="csg-hint">Unión y cruce son conmutativos. <strong>Diferencia</strong> = A − B (resta B de A).</p>
+        <div class="btn-row csg-row">
+          <button type="button" id="btnUnion" class="primary" disabled>Unión</button>
+          <button type="button" id="btnDiff" disabled>Diferencia A−B</button>
+          <button type="button" id="btnIsect" disabled>Intersección</button>
+        </div>
+      </div>
+
+      <div class="card" id="transformCard">
+        <h2>Traslación <span class="badge">mundo</span></h2>
+        <div class="grid-3">
+          <label>Incremento: <span id="moveStepLabel">0.12</span></label>
+          <button type="button" class="move-btn" data-axis="x" data-sign="-">X −</button>
+          <button type="button" class="move-btn" data-axis="x" data-sign="+">X +</button>
+          <button type="button" class="move-btn" data-axis="y" data-sign="-">Y −</button>
+          <button type="button" class="move-btn" data-axis="y" data-sign="+">Y +</button>
+          <button type="button" class="move-btn" data-axis="z" data-sign="-">Z −</button>
+          <button type="button" class="move-btn" data-axis="z" data-sign="+">Z +</button>
+        </div>
+      </div>
+
+      <div class="card" id="rotateCard">
+        <h2>Rotación <span class="badge">grados</span></h2>
+        <div class="grid-3">
+          <label>Paso: <span id="rotStepLabel">10</span>°</label>
+          <button type="button" class="rot-btn" data-axis="x" data-sign="-">Rx −</button>
+          <button type="button" class="rot-btn" data-axis="x" data-sign="+">Rx +</button>
+          <button type="button" class="rot-btn" data-axis="y" data-sign="-">Ry −</button>
+          <button type="button" class="rot-btn" data-axis="y" data-sign="+">Ry +</button>
+          <button type="button" class="rot-btn" data-axis="z" data-sign="-">Rz −</button>
+          <button type="button" class="rot-btn" data-axis="z" data-sign="+">Rz +</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Vista</h2>
+        <div class="btn-row">
+          <button type="button" id="zoomIn">Acercar</button>
+          <button type="button" id="zoomOut">Alejar</button>
+          <button type="button" id="fullscreen">Pantalla completa</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
+      <p class="status" id="statusLine"></p>
+    </main>
   </div>
-  <!-- Create the canvas that the C++ code will draw into -->
-  <canvas id="canvas"></canvas>
-  <!-- Allow the C++ to access the canvas element -->
-  <script type="text/javascript">
+
+  <script>
+    var MOVE_STEP = 0.12;
+    var ROT_STEP = 10;
+
     var canvas = document.getElementById("canvas");
-    canvas.addEventListener(
-      "touchend",
-      function () {
-        window.allowMovement = !window.allowMovement;
-      },
-      false
-    );
-    canvas.addEventListener(
-      "click",
-      function () {
-        window.allowMovement = !window.allowMovement;
-      },
-      false
-    );
-    document.getElementById("fullscreen").addEventListener(
-      "click",
-      function () {
-        if (canvas.requestFullscreen) {
-          canvas.requestFullscreen();
-        } else if (canvas.webkitRequestFullscreen) {
-          /* Safari */
-          canvas.webkitRequestFullscreen();
-        } else if (canvas.msRequestFullscreen) {
-          /* IE11 */
-          canvas.msRequestFullscreen();
-        }
-      },
-      false
-    );
+    var objectSelect = document.getElementById("objectSelect");
+    var operandA = document.getElementById("operandA");
+    var operandB = document.getElementById("operandB");
+    var btnUnion = document.getElementById("btnUnion");
+    var btnDiff = document.getElementById("btnDiff");
+    var btnIsect = document.getElementById("btnIsect");
+    var btnDeselect = document.getElementById("btnDeselect");
+    var transformCard = document.getElementById("transformCard");
+    var rotateCard = document.getElementById("rotateCard");
+    var statusLine = document.getElementById("statusLine");
+    document.getElementById("moveStepLabel").textContent = String(MOVE_STEP);
+    document.getElementById("rotStepLabel").textContent = String(ROT_STEP);
+
+    canvas.addEventListener("click", function () {
+      window.allowMovement = !window.allowMovement;
+      updateStatus();
+    });
+    canvas.addEventListener("touchend", function (e) {
+      e.preventDefault();
+      window.allowMovement = !window.allowMovement;
+      updateStatus();
+    });
+
+    function updateStatus() {
+      statusLine.textContent =
+        window.allowMovement === false
+          ? "Modo: vista fija (clic para orbitar de nuevo)"
+          : "Modo: orbitar con ratón (clic para fijar vista)";
+    }
+    updateStatus();
+
+    function kindLabel(k) {
+      if (k === 1) return "Cubo";
+      if (k === 2) return "Esfera";
+      if (k === 3) return "CSG";
+      return "Objeto";
+    }
+
+    function fillOperandSelect(el, n, currentIdx) {
+      el.innerHTML = "";
+      var def = document.createElement("option");
+      def.value = "";
+      def.textContent = "— Ninguno —";
+      el.appendChild(def);
+      var counts = { 1: 0, 2: 0, 3: 0 };
+      for (var i = 0; i < n; i++) {
+        var k = Module._getObjectKind(i);
+        counts[k] = (counts[k] || 0) + 1;
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = kindLabel(k) + " · #" + counts[k] + " (índice " + i + ")";
+        el.appendChild(opt);
+      }
+      if (currentIdx >= 0 && currentIdx < n) {
+        el.value = String(currentIdx);
+      } else {
+        el.value = "";
+      }
+    }
+
+    function refreshOperandSelects() {
+      var n = Module._getSceneObjectCount();
+      if (n === 0) {
+        Module._setBooleanOperandA(-1);
+        Module._setBooleanOperandB(-1);
+      }
+      var a = Module._getBooleanOperandA();
+      var b = Module._getBooleanOperandB();
+      if (a >= n || a < 0) {
+        a = -1;
+        Module._setBooleanOperandA(-1);
+      }
+      if (b >= n || b < 0) {
+        b = -1;
+        Module._setBooleanOperandB(-1);
+      }
+      fillOperandSelect(operandA, n, a);
+      fillOperandSelect(operandB, n, b);
+      updateCsgButtons();
+    }
+
+    function updateCsgButtons() {
+      var n = Module._getSceneObjectCount();
+      var a = Module._getBooleanOperandA();
+      var b = Module._getBooleanOperandB();
+      var ok = n >= 2 && a >= 0 && b >= 0 && a !== b;
+      btnUnion.disabled = !ok;
+      btnDiff.disabled = !ok;
+      btnIsect.disabled = !ok;
+    }
+
+    function refreshObjectList() {
+      var n = Module._getSceneObjectCount();
+      var sel = Module._getSelectedObjectIndex();
+      objectSelect.innerHTML = "";
+      if (n <= 0) {
+        var opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = "— Sin objetos —";
+        objectSelect.appendChild(opt0);
+        btnDeselect.disabled = true;
+        setTransformEnabled(false);
+        refreshOperandSelects();
+        return;
+      }
+      var counts = { 1: 0, 2: 0 };
+      for (var i = 0; i < n; i++) {
+        var k = Module._getObjectKind(i);
+        counts[k] = (counts[k] || 0) + 1;
+        var label = kindLabel(k);
+        var idxInType = counts[k];
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = label + " · #" + idxInType + " (índice " + i + ")";
+        objectSelect.appendChild(opt);
+      }
+      if (sel >= 0 && sel < n) {
+        objectSelect.value = String(sel);
+      } else {
+        objectSelect.value = "";
+      }
+      btnDeselect.disabled = sel < 0;
+      setTransformEnabled(sel >= 0);
+      refreshOperandSelects();
+    }
+
+    function setTransformEnabled(on) {
+      var buttons = document.querySelectorAll(".move-btn, .rot-btn");
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = !on;
+      }
+    }
+
+    objectSelect.addEventListener("change", function () {
+      var v = objectSelect.value;
+      if (v === "") {
+        Module._setSelectedObjectIndex(-1);
+      } else {
+        Module._setSelectedObjectIndex(parseInt(v, 10));
+      }
+      refreshObjectList();
+    });
+
+    document.getElementById("btnDeselect").addEventListener("click", function () {
+      Module._setSelectedObjectIndex(-1);
+      objectSelect.value = "";
+      refreshObjectList();
+    });
+
+    operandA.addEventListener("change", function () {
+      var v = operandA.value;
+      Module._setBooleanOperandA(v === "" ? -1 : parseInt(v, 10));
+      updateCsgButtons();
+    });
+
+    operandB.addEventListener("change", function () {
+      var v = operandB.value;
+      Module._setBooleanOperandB(v === "" ? -1 : parseInt(v, 10));
+      updateCsgButtons();
+    });
+
+    document.getElementById("btnUnion").addEventListener("click", function () {
+      Module._performBooleanUnion();
+      refreshObjectList();
+    });
+
+    document.getElementById("btnDiff").addEventListener("click", function () {
+      Module._performBooleanDifference();
+      refreshObjectList();
+    });
+
+    document.getElementById("btnIsect").addEventListener("click", function () {
+      Module._performBooleanIntersection();
+      refreshObjectList();
+    });
+
+    function bindAxisButtons(className, handler) {
+      var nodes = document.querySelectorAll(className);
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].addEventListener("click", handler);
+      }
+    }
+
+    bindAxisButtons(".move-btn", function (ev) {
+      var axis = ev.target.getAttribute("data-axis");
+      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
+      var dx = 0,
+        dy = 0,
+        dz = 0;
+      var s = MOVE_STEP * sign;
+      if (axis === "x") dx = s;
+      if (axis === "y") dy = s;
+      if (axis === "z") dz = s;
+      Module._nudgeSelectedTranslate(dx, dy, dz);
+    });
+
+    bindAxisButtons(".rot-btn", function (ev) {
+      var axis = ev.target.getAttribute("data-axis");
+      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
+      var r = ROT_STEP * sign;
+      var rx = 0,
+        ry = 0,
+        rz = 0;
+      if (axis === "x") rx = r;
+      if (axis === "y") ry = r;
+      if (axis === "z") rz = r;
+      Module._nudgeSelectedRotateDegrees(rx, ry, rz);
+    });
+
+    document.getElementById("fullscreen").addEventListener("click", function () {
+      if (canvas.requestFullscreen) canvas.requestFullscreen();
+      else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+      else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+    });
+
     var Module = {
-      canvas
+      canvas: canvas,
+      onRuntimeInitialized: function () {
+        document.getElementById("btnCube").addEventListener("click", function () {
+          Module._addCube(1, 1, 1);
+          refreshObjectList();
+        });
+        document.getElementById("btnSphere").addEventListener("click", function () {
+          Module._addSphere();
+          refreshObjectList();
+        });
+        document.getElementById("zoomIn").addEventListener("click", function () {
+          Module._cameraZoomIn();
+        });
+        document.getElementById("zoomOut").addEventListener("click", function () {
+          Module._cameraZoomOut();
+        });
+        refreshObjectList();
+      },
     };
   </script>
-  <!-- Call the javascript glue code (index.js) as generated by Emscripten -->
   <script src="wasmGL.js"></script>
-  <script type="text/javascript">
-    document
-      .getElementById("cube")
-      .addEventListener("click", function () {
-        _addCube(1, 1, 1);
-      }, false);
-    document
-      .getElementById("sphere")
-      .addEventListener("click", _addSphere, false);
-  </script>
-  <!-- Allow the javascript to call C++ functions -->
 </body>
 
 </html>

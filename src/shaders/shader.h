@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 
-#include <GL/glew.h>
+#include "wasmgl_gl.h"
 
 class Shader
 {
@@ -21,6 +21,15 @@ public:
 	GLuint GetProjectionLocation();
 	GLuint GetModelLocation();
 	GLuint GetViewLocation();
+	GLuint GetNormalMatrixLocation() const { return uniformNormalMatrix; }
+	GLuint GetObjectColorLocation() const { return uniformObjectColor; }
+	GLuint GetViewPosLocation() const { return uniformViewPos; }
+	GLuint GetLightDirLocation() const { return uniformLightDir; }
+	GLuint GetAmbientLocation() const { return uniformAmbient; }
+	GLuint GetSpecStrengthLocation() const { return uniformSpecStrength; }
+	GLuint GetShininessLocation() const { return uniformShininess; }
+	/** For line / wire pass (single mvp). */
+	GLuint GetMVPLocation() const { return uniformMVP; }
 
 	void UseShader();
 	void ClearShader();
@@ -29,6 +38,14 @@ public:
 
 private:
 	GLuint shaderID, uniformProjection, uniformModel, uniformView;
+	GLuint uniformNormalMatrix{0};
+	GLuint uniformObjectColor{0};
+	GLuint uniformViewPos{0};
+	GLuint uniformLightDir{0};
+	GLuint uniformAmbient{0};
+	GLuint uniformSpecStrength{0};
+	GLuint uniformShininess{0};
+	GLuint uniformMVP{0};
 
 	void CompileShader(const GLchar *vertexCode, const GLchar *fragmentCode);
 	void AddShader(GLuint theProgram, const char *shaderCode, GLenum shaderType);

@@ -34,14 +34,17 @@ int Window::Initialise()
 		return 1;
 	}
 
-	// Setup GLFW Windows Properties
-	// OpenGL version
+	// Setup GLFW: desktop OpenGL 3.3 core; Emscripten uses embedded WebGL2 (GLES3)
+#ifdef __EMSCRIPTEN__
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+#else
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	// Core Profile
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	// Allow forward compatiblity
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
 	// Create the window
 	mainWindow = glfwCreateWindow(width, height, "Test Window", NULL, NULL);
@@ -62,9 +65,8 @@ int Window::Initialise()
 	createCallbacks();
 	// glfwSetInputMode(mainWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable cursor
 
-	// Allow modern extension access
+#ifndef __EMSCRIPTEN__
 	glewExperimental = GL_TRUE;
-
 	GLenum error = glewInit();
 	if (error != GLEW_OK)
 	{
@@ -73,6 +75,7 @@ int Window::Initialise()
 		glfwTerminate();
 		return 1;
 	}
+#endif
 
 	glEnable(GL_DEPTH_TEST);
 
