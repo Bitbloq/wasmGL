@@ -5,11 +5,17 @@
 #include "mesh.h"
 #include "../primitives/box.h"
 #include "../primitives/sphere.h"
+#include "../primitives/pyramid.h"
+#include "../primitives/cylinder.h"
+#include "../primitives/torus.h"
 
 using namespace std;
 
 std::shared_ptr<Box> createBox(BoxDimensions const &dimensions);
 std::shared_ptr<Sphere> createSphere(SphereDimensions const &dimensions, SphereParameters const &parameters);
+std::shared_ptr<Pyramid> createPyramid(PyramidDimensions const &dimensions);
+std::shared_ptr<Cylinder> createCylinder(CylinderDimensions const &dimensions, CylinderParameters const &parameters);
+std::shared_ptr<Torus> createTorus(TorusDimensions const &dimensions, TorusParameters const &parameters);
 
 std::shared_ptr<Mesh> rotate(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &rotation);
 std::shared_ptr<Mesh> translate(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &translation);

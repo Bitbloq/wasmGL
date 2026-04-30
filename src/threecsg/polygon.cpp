@@ -145,7 +145,11 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
       {
         glm::vec3 const edge = vj->position - vi->position;
         float const denom = glm::dot(planeN, edge);
-        float const t = (this->w - glm::dot(planeN, vi->position)) / denom;
+        /** Edge parallel to cutting plane: skip bogus intersection (avoids holes / spikes). */
+        if (std::abs(denom) < 1e-8f)
+          continue;
+        float t = (this->w - glm::dot(planeN, vi->position)) / denom;
+        t = glm::clamp(t, 0.0f, 1.0f);
         auto v = vi->interpolate(vj, t);
         front_vertices.push_back(v);
         back_vertices.push_back(v);

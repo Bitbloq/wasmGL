@@ -1,7 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#define EPSILON 1e-5
+/** Plane tests / clipping; slightly relaxed vs 1e-5 for float CSG after transforms. */
+#define EPSILON 2e-4f
 
 enum CLASSIFICATION
 {

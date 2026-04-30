@@ -11,12 +11,27 @@ Pyramid::Pyramid(PyramidDimensions dimensions) : Mesh{}, dimensions{dimensions}
 
 Pyramid::Pyramid(Pyramid const &pyramid) : Mesh{}, dimensions{pyramid.dimensions}
 {
-    createVertices();
-    createMesh();
+	createVertices();
+	computeFaces();
+	createMesh();
 }
 
 Pyramid::~Pyramid()
 {
+}
+
+void Pyramid::rebuildGeometry()
+{
+	ClearMesh();
+	vertices.clear();
+	normals.clear();
+	faces.clear();
+	indices.clear();
+	createVertices();
+	computeFaces();
+	createMesh();
+	threeBSPDone = false;
+	computeThreeBSP();
 }
 
 void Pyramid::createVertices()

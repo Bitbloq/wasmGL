@@ -1,11 +1,156 @@
 #include "threebsp.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <numeric>
 #include <vector>
 #include "glm/glm.hpp"
-#include <map>
+#include <glm/gtc/matrix_inverse.hpp>
 #include "../complexobjects/csgmesh.h"
-#include <set>
+#include <utility>
 
 using namespace std;
+
+namespace
+{
+
+float cross2(glm::vec2 const &a, glm::vec2 const &b, glm::vec2 const &c)
+{
+	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+float signedArea2(vector<glm::vec2> const &p)
+{
+	float a = 0.f;
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		size_t const j = (i + 1) % p.size();
+		a += p[i].x * p[j].y - p[j].x * p[i].y;
+	}
+	return a * 0.5f;
+}
+
+/** Strict interior (CCW triangle abc); avoids rejecting valid ears when verts lie on edges. */
+bool pointInsideTriStrict(glm::vec2 const &p, glm::vec2 const &a, glm::vec2 const &b, glm::vec2 const &c)
+{
+	float const e = 1e-6f;
+	float const s1 = cross2(a, b, p);
+	float const s2 = cross2(b, c, p);
+	float const s3 = cross2(c, a, p);
+	return (s1 > e) && (s2 > e) && (s3 > e);
+}
+
+vector<glm::vec3> collapseConsecutive(vector<glm::vec3> const &in, float const eps2)
+{
+	vector<glm::vec3> out;
+	for (auto const &p : in)
+	{
+		if (out.empty() || glm::dot(p - out.back(), p - out.back()) > eps2)
+			out.push_back(p);
+	}
+	if (out.size() >= 3 && glm::dot(out.front() - out.back(), out.front() - out.back()) <= eps2)
+		out.pop_back();
+	return out;
+}
+
+vector<array<int, 3>> earClip2d(vector<glm::vec2> const &p2)
+{
+	int const n0 = static_cast<int>(p2.size());
+	vector<int> V(n0);
+	iota(V.begin(), V.end(), 0);
+	vector<array<int, 3>> tris;
+	int guard = 0;
+	while (static_cast<int>(V.size()) > 3 && guard++ < 1000000)
+	{
+		bool found = false;
+		int const nv = static_cast<int>(V.size());
+		for (int i = 0; i < nv; ++i)
+		{
+			int const i0 = V[(i + nv - 1) % nv];
+			int const i1 = V[i];
+			int const i2 = V[(i + 1) % nv];
+			glm::vec2 const &a = p2[i0];
+			glm::vec2 const &b = p2[i1];
+			glm::vec2 const &c = p2[i2];
+			if (cross2(a, b, c) <= 1e-12f)
+				continue;
+			bool empty = true;
+			for (int k : V)
+			{
+				if (k == i0 || k == i1 || k == i2)
+					continue;
+				if (pointInsideTriStrict(p2[k], a, b, c))
+				{
+					empty = false;
+					break;
+				}
+			}
+			if (!empty)
+				continue;
+			tris.push_back({i0, i1, i2});
+			V.erase(V.begin() + i);
+			found = true;
+			break;
+		}
+		if (!found)
+			break;
+	}
+	if (V.size() == 3)
+		tris.push_back({V[0], V[1], V[2]});
+	return tris;
+}
+
+/** Simple polygons only (BSP output); handles concave clips — unlike triangle fans. */
+vector<array<glm::vec3, 3>> triangulatePlanarNgon(vector<glm::vec3> pts, glm::vec3 const &nMesh)
+{
+	vector<array<glm::vec3, 3>> out;
+	pts = collapseConsecutive(pts, 1e-14f);
+	if (pts.size() < 3)
+		return out;
+	if (pts.size() == 3)
+	{
+		out.push_back({pts[0], pts[1], pts[2]});
+		return out;
+	}
+
+	glm::vec3 const n = glm::length(nMesh) > 1e-20f ? glm::normalize(nMesh) : glm::vec3(0.f, 1.f, 0.f);
+	glm::vec3 u = glm::cross(n, glm::abs(n.x) < 0.9f ? glm::vec3(1.f, 0.f, 0.f) : glm::vec3(0.f, 1.f, 0.f));
+	if (glm::dot(u, u) < 1e-20f)
+		u = glm::cross(n, glm::vec3(0.f, 0.f, 1.f));
+	u = glm::normalize(u);
+	glm::vec3 const v = glm::normalize(glm::cross(u, n));
+
+	vector<glm::vec2> p2(pts.size());
+	auto rebuildP2 = [&]()
+	{
+		glm::vec3 const o = pts[0];
+		for (size_t i = 0; i < pts.size(); ++i)
+		{
+			glm::vec3 const d = pts[i] - o;
+			p2[i] = glm::vec2(glm::dot(d, u), glm::dot(d, v));
+		}
+	};
+	rebuildP2();
+	if (signedArea2(p2) < 0.f)
+	{
+		reverse(pts.begin(), pts.end());
+		rebuildP2();
+	}
+
+	vector<array<int, 3>> tris = earClip2d(p2);
+	size_t const expected = pts.size() >= 3 ? pts.size() - 2 : 0;
+	if (tris.size() != expected && pts.size() >= 3)
+	{
+		tris.clear();
+		for (size_t j = 2; j < pts.size(); ++j)
+			tris.push_back({0, static_cast<int>(j - 1), static_cast<int>(j)});
+	}
+	for (auto const &t : tris)
+		out.push_back({pts[static_cast<size_t>(t[0])], pts[static_cast<size_t>(t[1])], pts[static_cast<size_t>(t[2])]});
+	return out;
+}
+
+} // namespace
 
 ThreeBSP::ThreeBSP(shared_ptr<Node> const &node)
 {
@@ -22,8 +167,9 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
   _node = make_shared<Node>();
   _vertex = make_shared<Vertex>();
 
-  // matrix = make_shared<glm::mat4x4>(glm::mat4x4(*mesh->getModelMatrix()));
-  matrix = mesh->getModelMatrix();
+  /** Own a copy so BSP geometry and `toMesh()` inverse stay aligned with the transform used here,
+   *  even if `mesh->model` is mutated before the next `computeThreeBSP()`. */
+  matrix = make_shared<glm::mat4>(*mesh->getModelMatrix());
   auto geometry = mesh;
   vector<shared_ptr<Polygon>> polygons;
   polygons.reserve(geometry->faces.size());
@@ -113,9 +259,12 @@ shared_ptr<ThreeBSP> ThreeBSP::intersect(shared_ptr<ThreeBSP> const &other_tree)
 
 shared_ptr<CSGMesh> ThreeBSP::toMesh()
 {
-  set<pair<string, int>> vertice_dict;
-  auto matrix = make_shared<glm::mat4x4>(glm::mat4x4(*(this->matrix)));
-  *matrix = glm::inverse(*matrix);
+  /** BSP polygons live in world space (built from meshes with model applied). Bake into
+   *  the first operand's model space using inverse(model), but the rendered mesh must use
+   *  the original model matrix — setting model to inverse(model) was double-applying the
+   *  inverse and broke unions whenever operands were moved or rotated. */
+  auto const invModelPtr = make_shared<glm::mat4x4>(glm::mat4x4(glm::inverse(*this->matrix)));
+  glm::mat3 const normalToMesh = glm::mat3(glm::inverse(*this->matrix));
   auto mesh = make_shared<CSGMesh>();
   auto polygons = this->tree->allPolygons();
   size_t faceTotal = 0;
@@ -130,66 +279,40 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
   for (size_t i{0}; i < polygons.size(); i++)
   {
     auto polygon = polygons.at(i);
-    for (size_t j{2}; j < polygon->vertices.size(); j++)
+    glm::vec3 const nWorld(polygon->normal->position.x, polygon->normal->position.y, polygon->normal->position.z);
+    glm::vec3 const nMesh = glm::normalize(normalToMesh * nWorld);
+
+    vector<glm::vec3> meshRing;
+    meshRing.reserve(polygon->vertices.size());
+    for (auto const &vv : polygon->vertices)
     {
-      // std::vector<shared_ptr<glm::vec2>> verticeUvs;
-      auto vertex = polygon->vertices.at(0);
-      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
-      auto vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
-      vertex3 = applyMatrix4(vertex3, matrix);
-      int vertex_idx_a;
-      if (exists(vertice_dict, make_key(vertex3)))
-      {
-        vertex_idx_a = getValue(vertice_dict, make_key(vertex3));
-      }
-      else
-      {
-        mesh->vertices.push_back(*vertex3);
-        addPair(vertice_dict, make_key(vertex3), mesh->vertices.size() - 1);
-        vertex_idx_a = mesh->vertices.size() - 1;
-      }
+      auto const w = make_shared<glm::vec3>(vv->position);
+      meshRing.push_back(*applyMatrix4(w, invModelPtr));
+    }
 
-      vertex = polygon->vertices.at(j - 1);
-      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
-      vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
-      vertex3 = applyMatrix4(vertex3, matrix);
-      int vertex_idx_b;
-      if (exists(vertice_dict, make_key(vertex3)))
-      {
-        vertex_idx_b = getValue(vertice_dict, make_key(vertex3));
-      }
-      else
-      {
-        mesh->vertices.push_back(*vertex3);
-        addPair(vertice_dict, make_key(vertex3), mesh->vertices.size() - 1);
-        vertex_idx_b = mesh->vertices.size() - 1;
-      }
+    vector<array<glm::vec3, 3>> const tris = triangulatePlanarNgon(meshRing, nMesh);
+    for (auto const &tri : tris)
+    {
+      glm::vec3 pa = tri[0];
+      glm::vec3 pb = tri[1];
+      glm::vec3 pc = tri[2];
 
-      vertex = polygon->vertices.at(j);
-      // verticeUvs.push_back(make_shared<glm::vec2>(glm::vec2(vertex->uv.x, vertex->uv.y)));
-      vertex3 = make_shared<glm::vec3>(glm::vec3(vertex->position.x, vertex->position.y, vertex->position.z));
-      vertex3 = applyMatrix4(vertex3, matrix);
-      int vertex_idx_c;
-      if (exists(vertice_dict, make_key(vertex3)))
-      {
-        vertex_idx_c = getValue(vertice_dict, make_key(vertex3));
-      }
-      else
-      {
-        mesh->vertices.push_back(*vertex3);
-        addPair(vertice_dict, make_key(vertex3), mesh->vertices.size() - 1);
-        vertex_idx_c = mesh->vertices.size() - 1;
-      }
+      glm::vec3 const geomN = glm::cross(pb - pa, pc - pa);
+      if (glm::dot(geomN, geomN) > 1e-24f && glm::dot(geomN, nMesh) < 0.0f)
+        std::swap(pb, pc);
 
-      auto face = make_shared<Face3>(Face3(vertex_idx_a,
-                                           vertex_idx_b,
-                                           vertex_idx_c,
-                                           glm::vec3(
-                                               polygon->normal->position.x,
-                                               polygon->normal->position.y,
-                                               polygon->normal->position.z)));
+      unsigned int const vertex_idx_a = static_cast<unsigned int>(mesh->vertices.size());
+      mesh->vertices.push_back(pa);
+      unsigned int const vertex_idx_b = static_cast<unsigned int>(mesh->vertices.size());
+      mesh->vertices.push_back(pb);
+      unsigned int const vertex_idx_c = static_cast<unsigned int>(mesh->vertices.size());
+      mesh->vertices.push_back(pc);
+
+      auto face = make_shared<Face3>(Face3(static_cast<int>(vertex_idx_a),
+                                           static_cast<int>(vertex_idx_b),
+                                           static_cast<int>(vertex_idx_c),
+                                           nMesh));
       mesh->faces.push_back(face);
-      // mesh->faceVertexUvs.at(0).push_back(verticeUvs);
     }
   }
   // faces to indices
@@ -199,7 +322,7 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
     mesh->indices.push_back(face->b);
     mesh->indices.push_back(face->c);
   }
-  mesh->setModel(matrix);
+  mesh->setModel(make_shared<glm::mat4>(*this->matrix));
   mesh->createMesh();
   mesh->computeThreeBSP();
 
@@ -214,58 +337,4 @@ shared_ptr<glm::vec3> applyMatrix4(shared_ptr<glm::vec3> const &v, shared_ptr<gl
   auto y = (elements[1] * v->x + elements[5] * v->y + elements[9] * v->z + elements[13]) * w;
   auto z = (elements[2] * v->x + elements[6] * v->y + elements[10] * v->z + elements[14]) * w;
   return make_shared<glm::vec3>(glm::vec3(x, y, z));
-}
-
-bool operator==(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first == b.first;
-}
-
-bool operator<(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first < b.first;
-}
-
-bool operator>(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first > b.first;
-}
-
-bool operator<=(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first <= b.first;
-}
-
-bool operator>=(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first >= b.first;
-}
-
-bool operator!=(pair<string, int> const &a, pair<string, int> const &b)
-{
-  return a.first != b.first;
-}
-
-bool exists(set<pair<string, int>> const &data, string key)
-{
-  if (data.find(make_pair(key, 0)) != data.end())
-  {
-    return true;
-  }
-  return false;
-}
-
-int getValue(set<pair<string, int>> const &data, string key)
-{
-  return data.find(make_pair(key, 0))->second;
-}
-string make_key(shared_ptr<glm::vec3> const &v)
-{
-  return to_string(v->x) + "," + to_string(v->y) + "," + to_string(v->z);
-}
-
-set<pair<string, int>> &addPair(set<pair<string, int>> &data, string key, int value)
-{
-  data.insert(make_pair(key, value));
-  return data;
 }

@@ -24,6 +24,9 @@
 #include "core/mesh.h"
 #include "primitives/box.h"
 #include "primitives/sphere.h"
+#include "primitives/pyramid.h"
+#include "primitives/cylinder.h"
+#include "primitives/torus.h"
 
 #include "./core/functions.h"
 #include "wasmgl_exports.h"
@@ -34,7 +37,7 @@
 
 Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
-/** Per-object label for UI: 1 = cube, 2 = sphere, 3 = CSG result (see wasmgl_exports.h). */
+/** UI labels: 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus (wasmgl_exports.h). */
 std::vector<int> meshObjectKinds;
 static int g_selectedIndex{-1};
 /** Indices for constructive solid ops (union / subtract / intersect). Must differ. */
@@ -309,6 +312,43 @@ void addSphere(float radius, int widthSeg, int heightSeg)
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
 }
 
+void addPyramid(float side, float height)
+{
+	GLfloat const s = std::max(1e-4f, side);
+	GLfloat const h = std::max(1e-4f, height);
+	auto pyr = createPyramid(PyramidDimensions{s, h});
+	pyr->setSolidColor(glm::vec3(0.75f, 0.55f, 0.22f));
+	meshList.push_back(pyr);
+	meshObjectKinds.push_back(4);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+}
+
+void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
+{
+	int const rseg = std::max(3, radialSeg);
+	int const hseg = std::max(1, heightSeg);
+	auto cyl = createCylinder(
+			CylinderDimensions{std::max(1e-4f, radiusBottom), std::max(1e-4f, radiusTop), std::max(1e-4f, height)},
+			CylinderParameters{rseg, hseg});
+	cyl->setSolidColor(glm::vec3(0.24f, 0.78f, 0.45f));
+	meshList.push_back(cyl);
+	meshObjectKinds.push_back(5);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+}
+
+void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
+{
+	int const rs = std::max(3, radialSeg);
+	int const ts = std::max(3, tubularSeg);
+	auto t = createTorus(
+			TorusDimensions{std::max(1e-4f, majorRadius), std::max(1e-4f, minorRadius)},
+			TorusParameters{rs, ts});
+	t->setSolidColor(glm::vec3(0.72f, 0.38f, 0.88f));
+	meshList.push_back(t);
+	meshObjectKinds.push_back(6);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+}
+
 int getSceneObjectCount(void)
 {
 	return static_cast<int>(meshList.size());
@@ -428,6 +468,161 @@ void resizeSelectedSphere(float radius, int widthSeg, int heightSeg)
 	p.heightSegments = hs;
 	s->setParameters(p);
 	s->rebuildGeometry();
+}
+
+float getSelectedPyramidSide(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!p)
+		return 0.0f;
+	return p->getDimensions().side;
+}
+
+float getSelectedPyramidHeight(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!p)
+		return 0.0f;
+	return p->getDimensions().height;
+}
+
+void resizeSelectedPyramid(float side, float height)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return;
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!p)
+		return;
+	p->setDimensions(PyramidDimensions{std::max(1e-4f, side), std::max(1e-4f, height)});
+	p->rebuildGeometry();
+}
+
+float getSelectedCylinderRadiusBottom(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return 0.0f;
+	return c->getDimensions().radiusBottom;
+}
+
+float getSelectedCylinderRadiusTop(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return 0.0f;
+	return c->getDimensions().radiusTop;
+}
+
+float getSelectedCylinderHeight(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return 0.0f;
+	return c->getDimensions().height;
+}
+
+int getSelectedCylinderRadialSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return 0;
+	return c->getParameters().radialSegments;
+}
+
+int getSelectedCylinderHeightSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return 0;
+	return c->getParameters().heightSegments;
+}
+
+void resizeSelectedCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return;
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!c)
+		return;
+	int const rseg = std::max(3, radialSeg);
+	int const hseg = std::max(1, heightSeg);
+	c->setDimensions(CylinderDimensions{std::max(1e-4f, radiusBottom), std::max(1e-4f, radiusTop), std::max(1e-4f, height)});
+	CylinderParameters p = c->getParameters();
+	p.radialSegments = rseg;
+	p.heightSegments = hseg;
+	c->setParameters(p);
+	c->rebuildGeometry();
+}
+
+float getSelectedTorusMajorRadius(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!t)
+		return 0.0f;
+	return t->getDimensions().majorRadius;
+}
+
+float getSelectedTorusMinorRadius(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!t)
+		return 0.0f;
+	return t->getDimensions().minorRadius;
+}
+
+int getSelectedTorusRadialSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!t)
+		return 0;
+	return t->getParameters().radialSegments;
+}
+
+int getSelectedTorusTubularSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!t)
+		return 0;
+	return t->getParameters().tubularSegments;
+}
+
+void resizeSelectedTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return;
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!t)
+		return;
+	int const rs = std::max(3, radialSeg);
+	int const ts = std::max(3, tubularSeg);
+	t->setDimensions(TorusDimensions{std::max(1e-4f, majorRadius), std::max(1e-4f, minorRadius)});
+	TorusParameters p = t->getParameters();
+	p.radialSegments = rs;
+	p.tubularSegments = ts;
+	t->setParameters(p);
+	t->rebuildGeometry();
 }
 
 void nudgeSelectedTranslate(float dx, float dy, float dz)

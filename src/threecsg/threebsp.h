@@ -2,7 +2,6 @@
 #define THREE_BSP_H
 
 #include <memory>
-#include <set>
 #include "polygon.h"
 #include "vertex.h"
 #include "node.h"
@@ -33,16 +32,5 @@ private:
 };
 
 shared_ptr<glm::vec3> applyMatrix4(shared_ptr<glm::vec3> const &v, shared_ptr<glm::mat4x4> const &m);
-bool exists(set<pair<string, int>> const &data, string key);
-int getValue(set<pair<string, int>> const &data, string key);
-string make_key(shared_ptr<glm::vec3> const &v);
-set<pair<string, int>> &addPair(set<pair<string, int>> &data, string key, int value);
-
-bool operator==(pair<string, int> const &a, pair<string, int> const &b);
-bool operator<(pair<string, int> const &a, pair<string, int> const &b);
-bool operator>(pair<string, int> const &a, pair<string, int> const &b);
-bool operator!=(pair<string, int> const &a, pair<string, int> const &b);
-bool operator<=(pair<string, int> const &a, pair<string, int> const &b);
-bool operator>=(pair<string, int> const &a, pair<string, int> const &b);
 
 #endif

@@ -254,6 +254,9 @@
         <select id="addType" aria-label="Object type to add">
           <option value="cube">Box (width, height, depth)</option>
           <option value="sphere">Sphere (radius, mesh detail)</option>
+          <option value="pyramid">Pyramid (base edge, height)</option>
+          <option value="cylinder">Cylinder / frustum (radii, height, segments)</option>
+          <option value="torus">Torus (major / minor radius, segments)</option>
         </select>
         <div id="addCubeFields">
           <div class="grid-2">
@@ -287,6 +290,64 @@
             </div>
           </div>
         </div>
+        <div id="addPyramidFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addPyrSide">Base edge</label>
+              <input type="number" id="addPyrSide" min="0.01" step="0.05" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="addPyrH">Height</label>
+              <input type="number" id="addPyrH" min="0.01" step="0.05" value="1" />
+            </div>
+          </div>
+        </div>
+        <div id="addCylinderFields" class="hidden">
+          <p class="section-desc" style="margin-bottom: 8px">Same top &amp; bottom radius = cylinder; different = truncated cone.</p>
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addCylRb">Radius bottom</label>
+              <input type="number" id="addCylRb" min="0.01" step="0.05" value="0.35" />
+            </div>
+            <div>
+              <label class="field-label" for="addCylRt">Radius top</label>
+              <input type="number" id="addCylRt" min="0.01" step="0.05" value="0.35" />
+            </div>
+            <div>
+              <label class="field-label" for="addCylH">Height</label>
+              <input type="number" id="addCylH" min="0.01" step="0.05" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="addCylRs">Radial segments</label>
+              <input type="number" id="addCylRs" min="3" step="1" value="24" />
+            </div>
+            <div>
+              <label class="field-label" for="addCylHs">Height segments</label>
+              <input type="number" id="addCylHs" min="1" step="1" value="1" />
+            </div>
+          </div>
+        </div>
+        <div id="addTorusFields" class="hidden">
+          <p class="section-desc" style="margin-bottom: 8px">Major = ring radius; minor = tube radius (must be &lt; major).</p>
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addTorMaj">Major radius</label>
+              <input type="number" id="addTorMaj" min="0.01" step="0.05" value="0.55" />
+            </div>
+            <div>
+              <label class="field-label" for="addTorMin">Minor radius</label>
+              <input type="number" id="addTorMin" min="0.01" step="0.05" value="0.18" />
+            </div>
+            <div>
+              <label class="field-label" for="addTorRs">Tube segments</label>
+              <input type="number" id="addTorRs" min="3" step="1" value="16" />
+            </div>
+            <div>
+              <label class="field-label" for="addTorTs">Ring segments</label>
+              <input type="number" id="addTorTs" min="3" step="1" value="32" />
+            </div>
+          </div>
+        </div>
         <div class="btn-row" style="margin-top: 10px">
           <button type="button" id="btnAddObject" class="primary">Add to scene</button>
         </div>
@@ -306,7 +367,7 @@
 
       <div class="card">
         <h2>3 · Resize selection</h2>
-        <p class="section-desc">Boxes use full width / height / depth. Spheres use radius and segment counts (mesh quality).</p>
+        <p class="section-desc">Dimensions match each primitive (box, sphere, pyramid, cylinder/frustum, torus). CSG results cannot be resized here.</p>
         <p id="resizeUnavailable" class="section-desc hidden">CSG results cannot be resized here — add a new primitive instead.</p>
         <div id="resizeBoxFields">
           <div class="grid-2">
@@ -344,6 +405,71 @@
           </div>
           <div class="btn-row" style="margin-top: 10px">
             <button type="button" id="btnApplySphereResize" class="primary">Apply sphere size</button>
+          </div>
+        </div>
+        <div id="resizePyramidFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="resPyrSide">Base edge</label>
+              <input type="number" id="resPyrSide" min="0.01" step="0.05" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="resPyrH">Height</label>
+              <input type="number" id="resPyrH" min="0.01" step="0.05" value="1" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button type="button" id="btnApplyPyramidResize" class="primary">Apply pyramid size</button>
+          </div>
+        </div>
+        <div id="resizeCylinderFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="resCylRb">Radius bottom</label>
+              <input type="number" id="resCylRb" min="0.01" step="0.05" value="0.35" />
+            </div>
+            <div>
+              <label class="field-label" for="resCylRt">Radius top</label>
+              <input type="number" id="resCylRt" min="0.01" step="0.05" value="0.35" />
+            </div>
+            <div>
+              <label class="field-label" for="resCylH">Height</label>
+              <input type="number" id="resCylH" min="0.01" step="0.05" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="resCylRs">Radial segments</label>
+              <input type="number" id="resCylRs" min="3" step="1" value="24" />
+            </div>
+            <div>
+              <label class="field-label" for="resCylHs">Height segments</label>
+              <input type="number" id="resCylHs" min="1" step="1" value="1" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button type="button" id="btnApplyCylinderResize" class="primary">Apply cylinder size</button>
+          </div>
+        </div>
+        <div id="resizeTorusFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="resTorMaj">Major radius</label>
+              <input type="number" id="resTorMaj" min="0.01" step="0.05" value="0.55" />
+            </div>
+            <div>
+              <label class="field-label" for="resTorMin">Minor radius</label>
+              <input type="number" id="resTorMin" min="0.01" step="0.05" value="0.18" />
+            </div>
+            <div>
+              <label class="field-label" for="resTorRs">Tube segments</label>
+              <input type="number" id="resTorRs" min="3" step="1" value="16" />
+            </div>
+            <div>
+              <label class="field-label" for="resTorTs">Ring segments</label>
+              <input type="number" id="resTorTs" min="3" step="1" value="32" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button type="button" id="btnApplyTorusResize" class="primary">Apply torus size</button>
           </div>
         </div>
       </div>
@@ -444,14 +570,26 @@
     document.getElementById("panStepLabel").textContent = String(PAN_STEP);
 
     var addType = document.getElementById("addType");
-    var addCubeFields = document.getElementById("addCubeFields");
-    var addSphereFields = document.getElementById("addSphereFields");
-
-    addType.addEventListener("change", function () {
-      var sp = addType.value === "sphere";
-      addCubeFields.classList.toggle("hidden", sp);
-      addSphereFields.classList.toggle("hidden", !sp);
-    });
+    var addFieldGroups = {
+      cube: document.getElementById("addCubeFields"),
+      sphere: document.getElementById("addSphereFields"),
+      pyramid: document.getElementById("addPyramidFields"),
+      cylinder: document.getElementById("addCylinderFields"),
+      torus: document.getElementById("addTorusFields"),
+    };
+    function updateAddShapePanels() {
+      var v = addType.value;
+      for (var key in addFieldGroups) {
+        addFieldGroups[key].classList.add("hidden");
+      }
+      if (v === "cube") addFieldGroups.cube.classList.remove("hidden");
+      else if (v === "sphere") addFieldGroups.sphere.classList.remove("hidden");
+      else if (v === "pyramid") addFieldGroups.pyramid.classList.remove("hidden");
+      else if (v === "cylinder") addFieldGroups.cylinder.classList.remove("hidden");
+      else if (v === "torus") addFieldGroups.torus.classList.remove("hidden");
+    }
+    addType.addEventListener("change", updateAddShapePanels);
+    updateAddShapePanels();
 
     canvas.addEventListener("click", function () {
       window.allowMovement = !window.allowMovement;
@@ -475,6 +613,9 @@
       if (k === 1) return "Box";
       if (k === 2) return "Sphere";
       if (k === 3) return "CSG";
+      if (k === 4) return "Pyramid";
+      if (k === 5) return "Cylinder";
+      if (k === 6) return "Torus";
       return "Object";
     }
 
@@ -484,13 +625,13 @@
       def.value = "";
       def.textContent = "— None —";
       el.appendChild(def);
-      var counts = { 1: 0, 2: 0, 3: 0 };
+      var kcounts = {};
       for (var i = 0; i < n; i++) {
         var k = Module._getObjectKind(i);
-        counts[k] = (counts[k] || 0) + 1;
+        kcounts[k] = (kcounts[k] || 0) + 1;
         var opt = document.createElement("option");
         opt.value = String(i);
-        opt.textContent = kindLabel(k) + " #" + counts[k] + " (index " + i + ")";
+        opt.textContent = kindLabel(k) + " #" + kcounts[k] + " (index " + i + ")";
         el.appendChild(opt);
       }
       if (currentIdx >= 0 && currentIdx < n) el.value = String(currentIdx);
@@ -533,17 +674,19 @@
       var kind = sel >= 0 ? Module._getObjectKind(sel) : 0;
       var boxBlock = document.getElementById("resizeBoxFields");
       var sphBlock = document.getElementById("resizeSphereFields");
+      var pyrBlock = document.getElementById("resizePyramidFields");
+      var cylBlock = document.getElementById("resizeCylinderFields");
+      var torBlock = document.getElementById("resizeTorusFields");
       var unavail = document.getElementById("resizeUnavailable");
+      [boxBlock, sphBlock, pyrBlock, cylBlock, torBlock].forEach(function (el) {
+        el.classList.add("hidden");
+      });
       if (sel < 0 || kind === 0) {
-        boxBlock.classList.add("hidden");
-        sphBlock.classList.add("hidden");
         unavail.classList.remove("hidden");
-        unavail.textContent = "Select a box or sphere to edit its dimensions.";
+        unavail.textContent = "Select a primitive to edit its dimensions.";
         return;
       }
       if (kind === 3) {
-        boxBlock.classList.add("hidden");
-        sphBlock.classList.add("hidden");
         unavail.classList.remove("hidden");
         unavail.textContent = "CSG mesh: resizing is not supported. Add a new primitive if needed.";
         return;
@@ -551,16 +694,31 @@
       unavail.classList.add("hidden");
       if (kind === 1) {
         boxBlock.classList.remove("hidden");
-        sphBlock.classList.add("hidden");
         document.getElementById("resW").value = String(Module._getSelectedBoxWidth());
         document.getElementById("resH").value = String(Module._getSelectedBoxHeight());
         document.getElementById("resD").value = String(Module._getSelectedBoxDepth());
       } else if (kind === 2) {
-        boxBlock.classList.add("hidden");
         sphBlock.classList.remove("hidden");
         document.getElementById("resRad").value = String(Module._getSelectedSphereRadius());
         document.getElementById("resSegW").value = String(Module._getSelectedSphereWidthSegments());
         document.getElementById("resSegH").value = String(Module._getSelectedSphereHeightSegments());
+      } else if (kind === 4) {
+        pyrBlock.classList.remove("hidden");
+        document.getElementById("resPyrSide").value = String(Module._getSelectedPyramidSide());
+        document.getElementById("resPyrH").value = String(Module._getSelectedPyramidHeight());
+      } else if (kind === 5) {
+        cylBlock.classList.remove("hidden");
+        document.getElementById("resCylRb").value = String(Module._getSelectedCylinderRadiusBottom());
+        document.getElementById("resCylRt").value = String(Module._getSelectedCylinderRadiusTop());
+        document.getElementById("resCylH").value = String(Module._getSelectedCylinderHeight());
+        document.getElementById("resCylRs").value = String(Module._getSelectedCylinderRadialSegments());
+        document.getElementById("resCylHs").value = String(Module._getSelectedCylinderHeightSegments());
+      } else if (kind === 6) {
+        torBlock.classList.remove("hidden");
+        document.getElementById("resTorMaj").value = String(Module._getSelectedTorusMajorRadius());
+        document.getElementById("resTorMin").value = String(Module._getSelectedTorusMinorRadius());
+        document.getElementById("resTorRs").value = String(Module._getSelectedTorusRadialSegments());
+        document.getElementById("resTorTs").value = String(Module._getSelectedTorusTubularSegments());
       }
     }
 
@@ -579,13 +737,13 @@
         syncResizePanel();
         return;
       }
-      var counts = { 1: 0, 2: 0, 3: 0 };
+      var counts2 = {};
       for (var i = 0; i < n; i++) {
         var k = Module._getObjectKind(i);
-        counts[k] = (counts[k] || 0) + 1;
+        counts2[k] = (counts2[k] || 0) + 1;
         var opt = document.createElement("option");
         opt.value = String(i);
-        opt.textContent = kindLabel(k) + " #" + counts[k] + " (index " + i + ")";
+        opt.textContent = kindLabel(k) + " #" + counts2[k] + " (index " + i + ")";
         objectSelect.appendChild(opt);
       }
       if (sel >= 0 && sel < n) objectSelect.value = String(sel);
@@ -681,12 +839,32 @@
             var d = parseFloat(document.getElementById("addD").value);
             if (!(w > 0 && h > 0 && d > 0)) return;
             Module._addCube(w, h, d);
-          } else {
+          } else if (addType.value === "sphere") {
             var rad = parseFloat(document.getElementById("addR").value);
             var sw = parseInt(document.getElementById("addSegW").value, 10);
             var sh = parseInt(document.getElementById("addSegH").value, 10);
             if (!(rad > 0)) return;
             Module._addSphere(rad, sw, sh);
+          } else if (addType.value === "pyramid") {
+            var ps = parseFloat(document.getElementById("addPyrSide").value);
+            var ph = parseFloat(document.getElementById("addPyrH").value);
+            if (!(ps > 0 && ph > 0)) return;
+            Module._addPyramid(ps, ph);
+          } else if (addType.value === "cylinder") {
+            var rb = parseFloat(document.getElementById("addCylRb").value);
+            var rt = parseFloat(document.getElementById("addCylRt").value);
+            var ch = parseFloat(document.getElementById("addCylH").value);
+            var crs = parseInt(document.getElementById("addCylRs").value, 10);
+            var chs = parseInt(document.getElementById("addCylHs").value, 10);
+            if (!(rb > 0 && rt > 0 && ch > 0)) return;
+            Module._addCylinder(rb, rt, ch, crs, chs);
+          } else if (addType.value === "torus") {
+            var maj = parseFloat(document.getElementById("addTorMaj").value);
+            var minr = parseFloat(document.getElementById("addTorMin").value);
+            var trs = parseInt(document.getElementById("addTorRs").value, 10);
+            var tts = parseInt(document.getElementById("addTorTs").value, 10);
+            if (!(maj > 0 && minr > 0)) return;
+            Module._addTorus(maj, minr, trs, tts);
           }
           refreshObjectList();
         });
@@ -704,6 +882,29 @@
           var sw = parseInt(document.getElementById("resSegW").value, 10);
           var sh = parseInt(document.getElementById("resSegH").value, 10);
           if (r > 0) Module._resizeSelectedSphere(r, sw, sh);
+          refreshObjectList();
+        });
+        document.getElementById("btnApplyPyramidResize").addEventListener("click", function () {
+          var s = parseFloat(document.getElementById("resPyrSide").value);
+          var h = parseFloat(document.getElementById("resPyrH").value);
+          if (s > 0 && h > 0) Module._resizeSelectedPyramid(s, h);
+          refreshObjectList();
+        });
+        document.getElementById("btnApplyCylinderResize").addEventListener("click", function () {
+          var rb = parseFloat(document.getElementById("resCylRb").value);
+          var rt = parseFloat(document.getElementById("resCylRt").value);
+          var h = parseFloat(document.getElementById("resCylH").value);
+          var rs = parseInt(document.getElementById("resCylRs").value, 10);
+          var hs = parseInt(document.getElementById("resCylHs").value, 10);
+          if (rb > 0 && rt > 0 && h > 0) Module._resizeSelectedCylinder(rb, rt, h, rs, hs);
+          refreshObjectList();
+        });
+        document.getElementById("btnApplyTorusResize").addEventListener("click", function () {
+          var maj = parseFloat(document.getElementById("resTorMaj").value);
+          var minr = parseFloat(document.getElementById("resTorMin").value);
+          var rs = parseInt(document.getElementById("resTorRs").value, 10);
+          var ts = parseInt(document.getElementById("resTorTs").value, 10);
+          if (maj > 0 && minr > 0) Module._resizeSelectedTorus(maj, minr, rs, ts);
           refreshObjectList();
         });
 
