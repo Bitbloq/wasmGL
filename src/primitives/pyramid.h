@@ -19,6 +19,7 @@ public:
 
   inline PyramidDimensions getDimensions() const { return dimensions; };
   inline void setDimensions(PyramidDimensions const &dimensions) { this->dimensions = dimensions; };
+  void rebuildGeometry();
 
 private:
   void createVertices();

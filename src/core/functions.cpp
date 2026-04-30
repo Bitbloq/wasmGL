@@ -16,6 +16,27 @@ std::shared_ptr<Sphere> createSphere(SphereDimensions const &dimensions, SphereP
   return mesh;
 }
 
+std::shared_ptr<Pyramid> createPyramid(PyramidDimensions const &dimensions)
+{
+  auto mesh = std::make_shared<Pyramid>(dimensions);
+  mesh->computeThreeBSP();
+  return mesh;
+}
+
+std::shared_ptr<Cylinder> createCylinder(CylinderDimensions const &dimensions, CylinderParameters const &parameters)
+{
+  auto mesh = std::make_shared<Cylinder>(dimensions, parameters);
+  mesh->computeThreeBSP();
+  return mesh;
+}
+
+std::shared_ptr<Torus> createTorus(TorusDimensions const &dimensions, TorusParameters const &parameters)
+{
+  auto mesh = std::make_shared<Torus>(dimensions, parameters);
+  mesh->computeThreeBSP();
+  return mesh;
+}
+
 std::shared_ptr<Mesh> rotate(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &rotation)
 {
   mesh->rotate(rotation);

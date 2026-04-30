@@ -1,12 +1,15 @@
 #include "sphere.h"
 #include <cmath>
 #include <iostream>
+#include <vector>
+
+/** Three.js `SphereGeometry` (r162) — same vertex, normal, and index order. */
 
 Sphere::Sphere(SphereDimensions const &dimensions, SphereParameters const &parameters) : Mesh{}, dimensions{dimensions}, parameters{parameters}
 {
-  createVertices();
-  computeFaces();
-  createMesh();
+	createVertices();
+	computeFaces();
+	createMesh();
 }
 
 Sphere::~Sphere()
@@ -29,81 +32,74 @@ void Sphere::rebuildGeometry()
 
 void Sphere::createVertices()
 {
-  auto radius = dimensions.radius;
-  auto heightSegments = parameters.heightSegments;
-  auto widthSegments = parameters.widthSegments;
-  auto phiStart = parameters.phiStart;
-  auto phiLength = parameters.phiLength;
-  auto thetaStart = parameters.thetaStart;
-  auto thetaLength = parameters.thetaLength;
+	widthSegments = std::max(3, parameters.widthSegments);
+	heightSegments = std::max(2, parameters.heightSegments);
 
-  int index = 0;
-  std::vector<std::vector<int>> grid;
+	float const radius = std::max(1e-4f, dimensions.radius);
+	float const phiStart = parameters.phiStart;
+	float const phiLength = parameters.phiLength;
+	float const thetaStart = parameters.thetaStart;
+	float const thetaLength = parameters.thetaLength;
 
-  widthSegments = std::max(3, widthSegments);
-  heightSegments = std::max(2, heightSegments);
+	float const thetaEnd = std::min(thetaStart + thetaLength, static_cast<float>(M_PI));
 
-  auto thetaEnd = std::min(thetaStart + thetaLength, float(M_PI));
+	vertices.clear();
+	normals.clear();
+	indices.clear();
 
-  for (size_t iy{0}; iy <= heightSegments; iy++)
-  {
-    std::vector<int> verticesRow;
-    auto v = iy / (float)heightSegments;
-    auto uOffset = 0;
-    if (iy == 0 && thetaStart == 0)
-    {
-      uOffset = 0.5 / widthSegments;
-    }
-    else if (iy == heightSegments && thetaEnd >= M_PI)
-    {
-      uOffset = -0.5 / widthSegments;
-    }
+	std::vector<std::vector<int>> grid;
+	int index = 0;
 
-    for (size_t ix{0}; ix <= widthSegments; ix++)
-    {
-      auto u = ix / (float)widthSegments;
-      auto vertex = glm::vec3();
-      vertex.x = -radius * cos(phiStart + u * phiLength) * sin(thetaStart + v * thetaLength);
-      vertex.y = radius * cos(thetaStart + v * thetaLength);
-      vertex.z = radius * sin(phiStart + u * phiLength) * sin(thetaStart + v * thetaLength);
-      this->vertices.push_back(vertex);
+	for (size_t iy = 0; iy <= static_cast<size_t>(heightSegments); ++iy)
+	{
+		std::vector<int> verticesRow;
+		float const v = static_cast<float>(iy) / static_cast<float>(heightSegments);
 
-      // normal
-      auto normal = glm::normalize(glm::vec3(vertex));
-      this->normals.push_back(normal);
+		float uOffset = 0.0f;
+		if (iy == 0 && thetaStart == 0.0f)
+			uOffset = 0.5f / static_cast<float>(widthSegments);
+		else if (static_cast<int>(iy) == heightSegments && thetaEnd >= static_cast<float>(M_PI))
+			uOffset = -0.5f / static_cast<float>(widthSegments);
 
-      // uv
-      // auto uv = glm::vec2(u + uOffset, 1.0f - v);
-      // this->uvs.push_back(uv);
+		for (size_t ix = 0; ix <= static_cast<size_t>(widthSegments); ++ix)
+		{
+			float const u = static_cast<float>(ix) / static_cast<float>(widthSegments);
 
-      verticesRow.push_back(index++);
-    }
-    grid.push_back(verticesRow);
-  }
+			glm::vec3 vertex;
+			vertex.x = -radius * std::cos(phiStart + u * phiLength) * std::sin(thetaStart + v * thetaLength);
+			vertex.y = radius * std::cos(thetaStart + v * thetaLength);
+			vertex.z = radius * std::sin(phiStart + u * phiLength) * std::sin(thetaStart + v * thetaLength);
+			vertices.push_back(vertex);
 
-  // indices
+			glm::vec3 const normal = glm::normalize(vertex);
+			normals.push_back(normal);
 
-  for (size_t iy{0}; iy < heightSegments; iy++)
-  {
-    for (size_t ix{0}; ix < widthSegments; ix++)
-    {
-      auto a = grid.at(iy).at(ix + 1);
-      auto b = grid.at(iy).at(ix);
-      auto c = grid.at(iy + 1).at(ix);
-      auto d = grid.at(iy + 1).at(ix + 1);
+			verticesRow.push_back(index++);
+		}
+		grid.push_back(std::move(verticesRow));
+	}
 
-      if (iy != 0 || thetaStart > 0)
-      {
-        this->indices.push_back(a);
-        this->indices.push_back(b);
-        this->indices.push_back(d);
-      }
-      if (iy != heightSegments - 1 || thetaEnd < M_PI)
-      {
-        this->indices.push_back(b);
-        this->indices.push_back(c);
-        this->indices.push_back(d);
-      }
-    }
-  }
+	for (size_t iy = 0; iy < static_cast<size_t>(heightSegments); ++iy)
+	{
+		for (size_t ix = 0; ix < static_cast<size_t>(widthSegments); ++ix)
+		{
+			int const a = grid[iy][ix + 1];
+			int const b = grid[iy][ix];
+			int const c = grid[iy + 1][ix];
+			int const d = grid[iy + 1][ix + 1];
+
+			if (iy != 0 || thetaStart > 0.0f)
+			{
+				indices.push_back(static_cast<unsigned int>(a));
+				indices.push_back(static_cast<unsigned int>(b));
+				indices.push_back(static_cast<unsigned int>(d));
+			}
+			if (static_cast<int>(iy) != heightSegments - 1 || thetaEnd < static_cast<float>(M_PI))
+			{
+				indices.push_back(static_cast<unsigned int>(b));
+				indices.push_back(static_cast<unsigned int>(c));
+				indices.push_back(static_cast<unsigned int>(d));
+			}
+		}
+	}
 }

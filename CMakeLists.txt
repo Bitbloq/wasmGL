@@ -14,8 +14,10 @@ set(WASMGL_SOURCES
   src/core/functions.cpp
   src/core/mesh.cpp
   src/primitives/box.cpp
+  src/primitives/cylinder.cpp
   src/primitives/pyramid.cpp
   src/primitives/sphere.cpp
+  src/primitives/torus.cpp
   src/shaders/shader.cpp
   src/threecsg/node.cpp
   src/threecsg/polygon.cpp
@@ -44,7 +46,7 @@ if(EMSCRIPTEN)
     "SHELL:-sMIN_WEBGL_VERSION=2"
     "SHELL:-sSTACK_SIZE=33554432"
     "SHELL:-sALLOW_MEMORY_GROWTH=1"
-    "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_cameraZoomIn,_cameraZoomOut,_cameraNudgeViewYawDegrees,_cameraNudgeViewPitchDegrees,_cameraNudgePositionView,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_getSelectedBoxWidth,_getSelectedBoxHeight,_getSelectedBoxDepth,_getSelectedSphereRadius,_getSelectedSphereWidthSegments,_getSelectedSphereHeightSegments,_resizeSelectedBox,_resizeSelectedSphere,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection]"
+    "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_addPyramid,_addCylinder,_addTorus,_cameraZoomIn,_cameraZoomOut,_cameraNudgeViewYawDegrees,_cameraNudgeViewPitchDegrees,_cameraNudgePositionView,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_getSelectedBoxWidth,_getSelectedBoxHeight,_getSelectedBoxDepth,_getSelectedSphereRadius,_getSelectedSphereWidthSegments,_getSelectedSphereHeightSegments,_getSelectedPyramidSide,_getSelectedPyramidHeight,_getSelectedCylinderRadiusBottom,_getSelectedCylinderRadiusTop,_getSelectedCylinderHeight,_getSelectedCylinderRadialSegments,_getSelectedCylinderHeightSegments,_getSelectedTorusMajorRadius,_getSelectedTorusMinorRadius,_getSelectedTorusRadialSegments,_getSelectedTorusTubularSegments,_resizeSelectedBox,_resizeSelectedSphere,_resizeSelectedPyramid,_resizeSelectedCylinder,_resizeSelectedTorus,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection]"
   )
 else()
   find_package(OpenGL REQUIRED)
