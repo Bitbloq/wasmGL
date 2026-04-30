@@ -6,6 +6,7 @@ Shader::Shader()
 	shaderID = 0;
 	uniformModel = 0;
 	uniformProjection = 0;
+	uniformView = 0;
 }
 
 void Shader::CreateFromString(const char *vertexCode, const char *fragmentCode)
@@ -83,6 +84,14 @@ void Shader::CompileShader(const GLchar *vertexCode, const GLchar *fragmentCode)
 	uniformProjection = glGetUniformLocation(shaderID, "projection");
 	uniformModel = glGetUniformLocation(shaderID, "model");
 	uniformView = glGetUniformLocation(shaderID, "view");
+	uniformNormalMatrix = glGetUniformLocation(shaderID, "normalMatrix");
+	uniformObjectColor = glGetUniformLocation(shaderID, "objectColor");
+	uniformViewPos = glGetUniformLocation(shaderID, "viewPos");
+	uniformLightDir = glGetUniformLocation(shaderID, "lightDir");
+	uniformAmbient = glGetUniformLocation(shaderID, "ambientStrength");
+	uniformSpecStrength = glGetUniformLocation(shaderID, "specularStrength");
+	uniformShininess = glGetUniformLocation(shaderID, "shininess");
+	uniformMVP = glGetUniformLocation(shaderID, "mvp");
 }
 
 GLuint Shader::GetViewLocation()
@@ -114,6 +123,15 @@ void Shader::ClearShader()
 
 	uniformModel = 0;
 	uniformProjection = 0;
+	uniformView = 0;
+	uniformNormalMatrix = 0;
+	uniformObjectColor = 0;
+	uniformViewPos = 0;
+	uniformLightDir = 0;
+	uniformAmbient = 0;
+	uniformSpecStrength = 0;
+	uniformShininess = 0;
+	uniformMVP = 0;
 }
 
 void Shader::AddShader(GLuint theProgram, const char *shaderCode, GLenum shaderType)

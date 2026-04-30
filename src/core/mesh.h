@@ -1,7 +1,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <GL/glew.h>
+#include "wasmgl_gl.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -26,6 +26,8 @@ public:
 	Mesh();
 
 	void RenderMesh();
+	/** Black/dark line overlay so edges read clearly (WebGL2-safe; no glPolygonMode). */
+	void RenderWireframe();
 
 	virtual void createVertices() = 0;
 
@@ -36,6 +38,9 @@ public:
 	shared_ptr<glm::mat4> getModelMatrix() const { return model; }
 
 	glm::f32 *getModelPtr();
+
+	void setSolidColor(glm::vec3 const &rgb) { solidColor = rgb; }
+	glm::vec3 getSolidColor() const { return solidColor; }
 
 	void setThreeBSP(shared_ptr<ThreeBSP> const &bsp)
 	{
@@ -58,12 +63,17 @@ protected:
 	void createMesh();
 	void ClearMesh();
 	void computeFaces();
+	/** Fills `normals` from `faces` if needed (box / CSG). Sphere already sets normals. */
+	void ensureVertexNormals();
+	void buildWireframeEdgeBuffer();
 
 	shared_ptr<ThreeBSP> threeBSP;
 
 	GLuint VAO,
 			VBO, IBO;
+	GLuint edgeIBO{0};
 	GLsizei indexCount;
+	GLsizei edgeIndexCount{0};
 	// std::vector<GLfloat> vertices;
 
 	/**
@@ -101,6 +111,9 @@ protected:
 	// std::vector<glm::vec2> uvs;
 
 	shared_ptr<glm::mat4> model;
+
+	/** Albedo for Phong shading (linear RGB, 0–1). */
+	glm::vec3 solidColor{0.45f, 0.55f, 0.85f};
 
 	int id; // unique id for this instance
 	string uuid;

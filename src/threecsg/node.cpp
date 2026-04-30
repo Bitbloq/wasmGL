@@ -7,6 +7,8 @@ Node::Node(vector<shared_ptr<Polygon>> const &polygons)
   this->back = nullptr;
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
+  front.reserve(polygons.size());
+  back.reserve(polygons.size());
 
   if (polygons.size() == 0)
   {
@@ -54,6 +56,8 @@ void Node::build(vector<shared_ptr<Polygon>> const &polygons)
 
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
+  front.reserve(polygons.size());
+  back.reserve(polygons.size());
 
   auto polygons_count = polygons.size();
   for (size_t i{0}; i < polygons_count; i++)
@@ -80,20 +84,19 @@ void Node::build(vector<shared_ptr<Polygon>> const &polygons)
   }
 }
 
+void Node::collectPolygons(vector<shared_ptr<Polygon>> &out) const
+{
+  out.insert(out.end(), this->polygons.begin(), this->polygons.end());
+  if (this->front)
+    this->front->collectPolygons(out);
+  if (this->back)
+    this->back->collectPolygons(out);
+}
+
 vector<shared_ptr<Polygon>> Node::allPolygons() const
 {
   vector<shared_ptr<Polygon>> polygons;
-  polygons.insert(polygons.end(), this->polygons.begin(), this->polygons.end());
-  if (this->front)
-  {
-    auto aux = this->front->allPolygons();
-    polygons.insert(polygons.end(), aux.begin(), aux.end());
-  }
-  if (this->back)
-  {
-    auto aux = this->back->allPolygons();
-    polygons.insert(polygons.end(), aux.begin(), aux.end());
-  }
+  collectPolygons(polygons);
   return polygons;
 }
 
@@ -101,6 +104,7 @@ shared_ptr<Node> Node::clone() const
 {
   auto node = make_shared<Node>();
   node->divider = this->divider->clone();
+  node->polygons.reserve(this->polygons.size());
   std::transform(this->polygons.begin(), this->polygons.end(), std::back_inserter(node->polygons), [](shared_ptr<Polygon> const &polygon)
                  { return polygon->clone(); });
 
@@ -142,8 +146,10 @@ vector<shared_ptr<Polygon>> Node::clipPolygons(vector<shared_ptr<Polygon>> const
 
   vector<shared_ptr<Polygon>> front;
   vector<shared_ptr<Polygon>> back;
+  size_t const polygon_count = polygons.size();
+  front.reserve(polygon_count);
+  back.reserve(polygon_count);
 
-  size_t polygon_count = polygons.size();
   for (size_t i{0}; i < polygon_count; i++)
   {
     this->divider->splitPolygon(polygons.at(i), front, back, front, back);

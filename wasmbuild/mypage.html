@@ -1,80 +1,747 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WasmGL — scene</title>
   <style>
-    canvas {
-      margin: auto;
-      display: block;
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3d8bfd;
+      --accent-dim: #2a5fad;
+      --radius: 10px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
     }
 
-    .control-section {
-      margin: 10px auto;
-      width: fit-content;
-      font-family: "Courier New", Courier, monospace;
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.45;
     }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+    }
+
+    header.shell-header {
+      grid-column: 1 / -1;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #152028 0%, var(--bg) 100%);
+    }
+
+    header.shell-header h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    header.shell-header .lead {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 72ch;
+    }
+
+    aside.panel {
+      padding: 16px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    @media (max-width: 900px) {
+      aside.panel { border-right: none; border-bottom: 1px solid var(--border); max-height: none; }
+    }
+
+    main.stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a2838 0%, var(--bg) 70%);
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .section-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0 0 10px 0;
+      line-height: 1.4;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #243044;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2d3d56;
+      border-color: #4a5f7a;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover:not(:disabled) { background: var(--accent); }
+
+    button.ghost { background: transparent; }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1218;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    input[type="number"] { margin-bottom: 0; }
+
+    select:focus, input[type="number"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 8px 0 4px;
+    }
+
+    .field-label:first-of-type { margin-top: 0; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .grid-3 > label, .grid-2 > .span-2 {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-align: center;
+      grid-column: 1 / -1;
+    }
+
+    .grid-3 label { margin-top: 4px; }
+    .grid-3:first-of-type label { margin-top: 0; }
+
+    .grid-3.compact { margin-top: 6px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #243044;
+      color: var(--muted);
+    }
+
+    canvas {
+      display: block;
+      width: min(100%, 920px);
+      height: auto;
+      max-height: min(70vh, 640px);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .csg-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 8px 0 10px;
+      line-height: 1.4;
+    }
+
+    .csg-row { flex-direction: column; align-items: stretch; }
+    .csg-row button { width: 100%; justify-content: center; }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 
 <body>
-  <div class="control-section">
-    <button id="cube">Add Cube</button>
-    <button id="sphere">Add Sphere</button>
-    <button id="fullscreen">Fullscreen</button>
+  <div class="app">
+    <header class="shell-header">
+      <h1>WasmGL</h1>
+      <p class="lead">
+        <strong>Canvas click</strong> toggles: orbit the camera with the mouse vs. keep a fixed view.
+        Use the panel to add solids, move and resize the <em>selected</em> object, move the <em>camera</em>, and run CSG on <em>two</em> chosen objects.
+      </p>
+    </header>
+
+    <aside class="panel" aria-label="Controls">
+      <div class="card">
+        <h2>1 · Add object</h2>
+        <p class="section-desc">Choose type, set size, then add to the scene.</p>
+        <label class="field-label" for="addType">Shape</label>
+        <select id="addType" aria-label="Object type to add">
+          <option value="cube">Box (width, height, depth)</option>
+          <option value="sphere">Sphere (radius, mesh detail)</option>
+        </select>
+        <div id="addCubeFields">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addW">Width</label>
+              <input type="number" id="addW" min="0.01" step="0.1" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="addH">Height</label>
+              <input type="number" id="addH" min="0.01" step="0.1" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="addD">Depth</label>
+              <input type="number" id="addD" min="0.01" step="0.1" value="1" />
+            </div>
+          </div>
+        </div>
+        <div id="addSphereFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addR">Radius</label>
+              <input type="number" id="addR" min="0.01" step="0.05" value="0.4" />
+            </div>
+            <div>
+              <label class="field-label" for="addSegW">Segments (ring)</label>
+              <input type="number" id="addSegW" min="3" step="1" value="16" />
+            </div>
+            <div>
+              <label class="field-label" for="addSegH">Segments (pole)</label>
+              <input type="number" id="addSegH" min="2" step="1" value="16" />
+            </div>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: 10px">
+          <button type="button" id="btnAddObject" class="primary">Add to scene</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2 · Selected object</h2>
+        <p class="section-desc">Pick what transforms and resizing apply to.</p>
+        <label class="field-label" for="objectSelect">Scene object</label>
+        <select id="objectSelect" aria-label="Scene object">
+          <option value="">— Empty scene —</option>
+        </select>
+        <div class="btn-row">
+          <button type="button" id="btnDeselect" class="ghost" disabled>Clear selection</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3 · Resize selection</h2>
+        <p class="section-desc">Boxes use full width / height / depth. Spheres use radius and segment counts (mesh quality).</p>
+        <p id="resizeUnavailable" class="section-desc hidden">CSG results cannot be resized here — add a new primitive instead.</p>
+        <div id="resizeBoxFields">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="resW">Width</label>
+              <input type="number" id="resW" min="0.01" step="0.1" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="resH">Height</label>
+              <input type="number" id="resH" min="0.01" step="0.1" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="resD">Depth</label>
+              <input type="number" id="resD" min="0.01" step="0.1" value="1" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button type="button" id="btnApplyBoxResize" class="primary">Apply box size</button>
+          </div>
+        </div>
+        <div id="resizeSphereFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="resRad">Radius</label>
+              <input type="number" id="resRad" min="0.01" step="0.05" value="0.4" />
+            </div>
+            <div>
+              <label class="field-label" for="resSegW">Segments (ring)</label>
+              <input type="number" id="resSegW" min="3" step="1" value="16" />
+            </div>
+            <div>
+              <label class="field-label" for="resSegH">Segments (pole)</label>
+              <input type="number" id="resSegH" min="2" step="1" value="16" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button type="button" id="btnApplySphereResize" class="primary">Apply sphere size</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>4 · Move selection <span class="badge">object</span></h2>
+        <p class="section-desc">Translate and rotate the <em>selected</em> mesh in world space (metres and degrees).</p>
+        <label class="field-label">Translate — step <span id="moveStepLabel">0.12</span> m</label>
+        <div class="grid-3">
+          <button type="button" class="move-btn" data-axis="x" data-sign="-" disabled>X −</button>
+          <button type="button" class="move-btn" data-axis="x" data-sign="+" disabled>X +</button>
+          <button type="button" class="move-btn" data-axis="y" data-sign="-" disabled>Y −</button>
+          <button type="button" class="move-btn" data-axis="y" data-sign="+" disabled>Y +</button>
+          <button type="button" class="move-btn" data-axis="z" data-sign="-" disabled>Z −</button>
+          <button type="button" class="move-btn" data-axis="z" data-sign="+" disabled>Z +</button>
+        </div>
+        <label class="field-label" style="margin-top: 10px">Rotate — step <span id="rotStepLabel">10</span>°</label>
+        <div class="grid-3 compact">
+          <button type="button" class="rot-btn" data-axis="x" data-sign="-" disabled>Rx −</button>
+          <button type="button" class="rot-btn" data-axis="x" data-sign="+" disabled>Rx +</button>
+          <button type="button" class="rot-btn" data-axis="y" data-sign="-" disabled>Ry −</button>
+          <button type="button" class="rot-btn" data-axis="y" data-sign="+" disabled>Ry +</button>
+          <button type="button" class="rot-btn" data-axis="z" data-sign="-" disabled>Rz −</button>
+          <button type="button" class="rot-btn" data-axis="z" data-sign="+" disabled>Rz +</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>5 · Scene view <span class="badge">camera</span></h2>
+        <p class="section-desc">Move the <em>camera</em> (not the object): pan in view space, orbit, and zoom (field of view).</p>
+        <label class="field-label">Pan / dolly — step <span id="panStepLabel">0.08</span> m</label>
+        <div class="grid-3 compact">
+          <button type="button" class="pan-btn" data-dir="forward" title="Move camera forward">Forward</button>
+          <button type="button" class="pan-btn" data-dir="back">Back</button>
+          <button type="button" class="pan-btn" data-dir="left">Strafe L</button>
+          <button type="button" class="pan-btn" data-dir="right">Strafe R</button>
+          <button type="button" class="pan-btn" data-dir="up">Up</button>
+          <button type="button" class="pan-btn" data-dir="down">Down</button>
+        </div>
+        <label class="field-label" style="margin-top: 10px">Orbit — step <span id="viewOrbitStepLabel">6</span>°</label>
+        <div class="grid-3 compact">
+          <button type="button" class="view-orbit" data-kind="yaw" data-sign="-">Yaw −</button>
+          <button type="button" class="view-orbit" data-kind="yaw" data-sign="+">Yaw +</button>
+          <button type="button" class="view-orbit" data-kind="pitch" data-sign="+">Pitch +</button>
+          <button type="button" class="view-orbit" data-kind="pitch" data-sign="-">Pitch −</button>
+        </div>
+        <div class="btn-row" style="margin-top: 10px">
+          <button type="button" id="zoomIn">Zoom in (narrow FOV)</button>
+          <button type="button" id="zoomOut">Zoom out (widen FOV)</button>
+          <button type="button" id="fullscreen">Fullscreen canvas</button>
+        </div>
+      </div>
+
+      <div class="card" id="csgCard">
+        <h2>6 · Boolean CSG <span class="badge">two objects</span></h2>
+        <p class="section-desc">Pick operand <strong>A</strong> and <strong>B</strong> (different indices). Union and intersection are symmetric; <strong>difference</strong> is A − B.</p>
+        <label class="field-label" for="operandA">Operand A</label>
+        <select id="operandA" aria-label="CSG operand A">
+          <option value="">— None —</option>
+        </select>
+        <label class="field-label" for="operandB">Operand B</label>
+        <select id="operandB" aria-label="CSG operand B">
+          <option value="">— None —</option>
+        </select>
+        <div class="btn-row csg-row" style="margin-top: 10px">
+          <button type="button" id="btnUnion" class="primary" disabled>Union</button>
+          <button type="button" id="btnDiff" disabled>Difference A − B</button>
+          <button type="button" id="btnIsect" disabled>Intersection</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
+      <p class="status" id="statusLine"></p>
+    </main>
   </div>
-  <!-- Create the canvas that the C++ code will draw into -->
-  <canvas id="canvas"></canvas>
-  <!-- Allow the C++ to access the canvas element -->
-  <script type="text/javascript">
+
+  <script>
+    var MOVE_STEP = 0.12;
+    var ROT_STEP = 10;
+    var VIEW_ORBIT_STEP = 6;
+    var PAN_STEP = 0.08;
+
     var canvas = document.getElementById("canvas");
-    canvas.addEventListener(
-      "touchend",
-      function () {
-        window.allowMovement = !window.allowMovement;
-      },
-      false
-    );
-    canvas.addEventListener(
-      "click",
-      function () {
-        window.allowMovement = !window.allowMovement;
-      },
-      false
-    );
-    document.getElementById("fullscreen").addEventListener(
-      "click",
-      function () {
-        if (canvas.requestFullscreen) {
-          canvas.requestFullscreen();
-        } else if (canvas.webkitRequestFullscreen) {
-          /* Safari */
-          canvas.webkitRequestFullscreen();
-        } else if (canvas.msRequestFullscreen) {
-          /* IE11 */
-          canvas.msRequestFullscreen();
-        }
-      },
-      false
-    );
+    var objectSelect = document.getElementById("objectSelect");
+    var operandA = document.getElementById("operandA");
+    var operandB = document.getElementById("operandB");
+    var btnUnion = document.getElementById("btnUnion");
+    var btnDiff = document.getElementById("btnDiff");
+    var btnIsect = document.getElementById("btnIsect");
+    var btnDeselect = document.getElementById("btnDeselect");
+    var statusLine = document.getElementById("statusLine");
+
+    document.getElementById("moveStepLabel").textContent = String(MOVE_STEP);
+    document.getElementById("rotStepLabel").textContent = String(ROT_STEP);
+    document.getElementById("viewOrbitStepLabel").textContent = String(VIEW_ORBIT_STEP);
+    document.getElementById("panStepLabel").textContent = String(PAN_STEP);
+
+    var addType = document.getElementById("addType");
+    var addCubeFields = document.getElementById("addCubeFields");
+    var addSphereFields = document.getElementById("addSphereFields");
+
+    addType.addEventListener("change", function () {
+      var sp = addType.value === "sphere";
+      addCubeFields.classList.toggle("hidden", sp);
+      addSphereFields.classList.toggle("hidden", !sp);
+    });
+
+    canvas.addEventListener("click", function () {
+      window.allowMovement = !window.allowMovement;
+      updateStatus();
+    });
+    canvas.addEventListener("touchend", function (e) {
+      e.preventDefault();
+      window.allowMovement = !window.allowMovement;
+      updateStatus();
+    });
+
+    function updateStatus() {
+      statusLine.textContent =
+        window.allowMovement === false
+          ? "Mode: fixed view (click canvas to orbit again)"
+          : "Mode: orbit with mouse (click canvas to lock view)";
+    }
+    updateStatus();
+
+    function kindLabel(k) {
+      if (k === 1) return "Box";
+      if (k === 2) return "Sphere";
+      if (k === 3) return "CSG";
+      return "Object";
+    }
+
+    function fillOperandSelect(el, n, currentIdx) {
+      el.innerHTML = "";
+      var def = document.createElement("option");
+      def.value = "";
+      def.textContent = "— None —";
+      el.appendChild(def);
+      var counts = { 1: 0, 2: 0, 3: 0 };
+      for (var i = 0; i < n; i++) {
+        var k = Module._getObjectKind(i);
+        counts[k] = (counts[k] || 0) + 1;
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = kindLabel(k) + " #" + counts[k] + " (index " + i + ")";
+        el.appendChild(opt);
+      }
+      if (currentIdx >= 0 && currentIdx < n) el.value = String(currentIdx);
+      else el.value = "";
+    }
+
+    function refreshOperandSelects() {
+      var n = Module._getSceneObjectCount();
+      if (n === 0) {
+        Module._setBooleanOperandA(-1);
+        Module._setBooleanOperandB(-1);
+      }
+      var a = Module._getBooleanOperandA();
+      var b = Module._getBooleanOperandB();
+      if (a >= n || a < 0) {
+        a = -1;
+        Module._setBooleanOperandA(-1);
+      }
+      if (b >= n || b < 0) {
+        b = -1;
+        Module._setBooleanOperandB(-1);
+      }
+      fillOperandSelect(operandA, n, a);
+      fillOperandSelect(operandB, n, b);
+      updateCsgButtons();
+    }
+
+    function updateCsgButtons() {
+      var n = Module._getSceneObjectCount();
+      var a = Module._getBooleanOperandA();
+      var b = Module._getBooleanOperandB();
+      var ok = n >= 2 && a >= 0 && b >= 0 && a !== b;
+      btnUnion.disabled = !ok;
+      btnDiff.disabled = !ok;
+      btnIsect.disabled = !ok;
+    }
+
+    function syncResizePanel() {
+      var sel = Module._getSelectedObjectIndex();
+      var kind = sel >= 0 ? Module._getObjectKind(sel) : 0;
+      var boxBlock = document.getElementById("resizeBoxFields");
+      var sphBlock = document.getElementById("resizeSphereFields");
+      var unavail = document.getElementById("resizeUnavailable");
+      if (sel < 0 || kind === 0) {
+        boxBlock.classList.add("hidden");
+        sphBlock.classList.add("hidden");
+        unavail.classList.remove("hidden");
+        unavail.textContent = "Select a box or sphere to edit its dimensions.";
+        return;
+      }
+      if (kind === 3) {
+        boxBlock.classList.add("hidden");
+        sphBlock.classList.add("hidden");
+        unavail.classList.remove("hidden");
+        unavail.textContent = "CSG mesh: resizing is not supported. Add a new primitive if needed.";
+        return;
+      }
+      unavail.classList.add("hidden");
+      if (kind === 1) {
+        boxBlock.classList.remove("hidden");
+        sphBlock.classList.add("hidden");
+        document.getElementById("resW").value = String(Module._getSelectedBoxWidth());
+        document.getElementById("resH").value = String(Module._getSelectedBoxHeight());
+        document.getElementById("resD").value = String(Module._getSelectedBoxDepth());
+      } else if (kind === 2) {
+        boxBlock.classList.add("hidden");
+        sphBlock.classList.remove("hidden");
+        document.getElementById("resRad").value = String(Module._getSelectedSphereRadius());
+        document.getElementById("resSegW").value = String(Module._getSelectedSphereWidthSegments());
+        document.getElementById("resSegH").value = String(Module._getSelectedSphereHeightSegments());
+      }
+    }
+
+    function refreshObjectList() {
+      var n = Module._getSceneObjectCount();
+      var sel = Module._getSelectedObjectIndex();
+      objectSelect.innerHTML = "";
+      if (n <= 0) {
+        var opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = "— Empty scene —";
+        objectSelect.appendChild(opt0);
+        btnDeselect.disabled = true;
+        setTransformEnabled(false);
+        refreshOperandSelects();
+        syncResizePanel();
+        return;
+      }
+      var counts = { 1: 0, 2: 0, 3: 0 };
+      for (var i = 0; i < n; i++) {
+        var k = Module._getObjectKind(i);
+        counts[k] = (counts[k] || 0) + 1;
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = kindLabel(k) + " #" + counts[k] + " (index " + i + ")";
+        objectSelect.appendChild(opt);
+      }
+      if (sel >= 0 && sel < n) objectSelect.value = String(sel);
+      else objectSelect.value = "";
+      btnDeselect.disabled = sel < 0;
+      setTransformEnabled(sel >= 0);
+      refreshOperandSelects();
+      syncResizePanel();
+    }
+
+    function setTransformEnabled(on) {
+      var buttons = document.querySelectorAll(".move-btn, .rot-btn");
+      for (var i = 0; i < buttons.length; i++) buttons[i].disabled = !on;
+    }
+
+    objectSelect.addEventListener("change", function () {
+      var v = objectSelect.value;
+      Module._setSelectedObjectIndex(v === "" ? -1 : parseInt(v, 10));
+      refreshObjectList();
+    });
+
+    document.getElementById("btnDeselect").addEventListener("click", function () {
+      Module._setSelectedObjectIndex(-1);
+      objectSelect.value = "";
+      refreshObjectList();
+    });
+
+    operandA.addEventListener("change", function () {
+      var v = operandA.value;
+      Module._setBooleanOperandA(v === "" ? -1 : parseInt(v, 10));
+      updateCsgButtons();
+    });
+
+    operandB.addEventListener("change", function () {
+      var v = operandB.value;
+      Module._setBooleanOperandB(v === "" ? -1 : parseInt(v, 10));
+      updateCsgButtons();
+    });
+
+    document.getElementById("btnUnion").addEventListener("click", function () {
+      Module._performBooleanUnion();
+      refreshObjectList();
+    });
+    document.getElementById("btnDiff").addEventListener("click", function () {
+      Module._performBooleanDifference();
+      refreshObjectList();
+    });
+    document.getElementById("btnIsect").addEventListener("click", function () {
+      Module._performBooleanIntersection();
+      refreshObjectList();
+    });
+
+    function bindAxisButtons(className, handler) {
+      var nodes = document.querySelectorAll(className);
+      for (var i = 0; i < nodes.length; i++) nodes[i].addEventListener("click", handler);
+    }
+
+    bindAxisButtons(".move-btn", function (ev) {
+      var axis = ev.target.getAttribute("data-axis");
+      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
+      var dx = 0, dy = 0, dz = 0;
+      var s = MOVE_STEP * sign;
+      if (axis === "x") dx = s;
+      if (axis === "y") dy = s;
+      if (axis === "z") dz = s;
+      Module._nudgeSelectedTranslate(dx, dy, dz);
+    });
+
+    bindAxisButtons(".rot-btn", function (ev) {
+      var axis = ev.target.getAttribute("data-axis");
+      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
+      var r = ROT_STEP * sign;
+      var rx = 0, ry = 0, rz = 0;
+      if (axis === "x") rx = r;
+      if (axis === "y") ry = r;
+      if (axis === "z") rz = r;
+      Module._nudgeSelectedRotateDegrees(rx, ry, rz);
+    });
+
+    document.getElementById("fullscreen").addEventListener("click", function () {
+      if (canvas.requestFullscreen) canvas.requestFullscreen();
+      else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+      else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+    });
+
     var Module = {
-      canvas
+      canvas: canvas,
+      onRuntimeInitialized: function () {
+        document.getElementById("btnAddObject").addEventListener("click", function () {
+          if (addType.value === "cube") {
+            var w = parseFloat(document.getElementById("addW").value);
+            var h = parseFloat(document.getElementById("addH").value);
+            var d = parseFloat(document.getElementById("addD").value);
+            if (!(w > 0 && h > 0 && d > 0)) return;
+            Module._addCube(w, h, d);
+          } else {
+            var rad = parseFloat(document.getElementById("addR").value);
+            var sw = parseInt(document.getElementById("addSegW").value, 10);
+            var sh = parseInt(document.getElementById("addSegH").value, 10);
+            if (!(rad > 0)) return;
+            Module._addSphere(rad, sw, sh);
+          }
+          refreshObjectList();
+        });
+
+        document.getElementById("btnApplyBoxResize").addEventListener("click", function () {
+          var w = parseFloat(document.getElementById("resW").value);
+          var h = parseFloat(document.getElementById("resH").value);
+          var d = parseFloat(document.getElementById("resD").value);
+          if (w > 0 && h > 0 && d > 0) Module._resizeSelectedBox(w, h, d);
+          refreshObjectList();
+        });
+
+        document.getElementById("btnApplySphereResize").addEventListener("click", function () {
+          var r = parseFloat(document.getElementById("resRad").value);
+          var sw = parseInt(document.getElementById("resSegW").value, 10);
+          var sh = parseInt(document.getElementById("resSegH").value, 10);
+          if (r > 0) Module._resizeSelectedSphere(r, sw, sh);
+          refreshObjectList();
+        });
+
+        document.getElementById("zoomIn").addEventListener("click", function () {
+          Module._cameraZoomIn();
+        });
+        document.getElementById("zoomOut").addEventListener("click", function () {
+          Module._cameraZoomOut();
+        });
+        var orbitBtns = document.querySelectorAll(".view-orbit");
+        for (var ob = 0; ob < orbitBtns.length; ob++) {
+          orbitBtns[ob].addEventListener("click", function (ev) {
+            var btn = ev.currentTarget;
+            var kind = btn.getAttribute("data-kind");
+            var sign = btn.getAttribute("data-sign") === "+" ? 1 : -1;
+            var step = VIEW_ORBIT_STEP * sign;
+            if (kind === "yaw") Module._cameraNudgeViewYawDegrees(step);
+            else Module._cameraNudgeViewPitchDegrees(step);
+          });
+        }
+        var panBtns = document.querySelectorAll(".pan-btn");
+        for (var pi = 0; pi < panBtns.length; pi++) {
+          panBtns[pi].addEventListener("click", function (ev) {
+            var dir = ev.currentTarget.getAttribute("data-dir");
+            var s = PAN_STEP;
+            if (dir === "forward") Module._cameraNudgePositionView(s, 0, 0);
+            else if (dir === "back") Module._cameraNudgePositionView(-s, 0, 0);
+            else if (dir === "right") Module._cameraNudgePositionView(0, s, 0);
+            else if (dir === "left") Module._cameraNudgePositionView(0, -s, 0);
+            else if (dir === "up") Module._cameraNudgePositionView(0, 0, s);
+            else if (dir === "down") Module._cameraNudgePositionView(0, 0, -s);
+          });
+        }
+        refreshObjectList();
+      },
     };
   </script>
-  <!-- Call the javascript glue code (index.js) as generated by Emscripten -->
   <script src="wasmGL.js"></script>
-  <script type="text/javascript">
-    document
-      .getElementById("cube")
-      .addEventListener("click", function () {
-        _addCube(1, 1, 1);
-      }, false);
-    document
-      .getElementById("sphere")
-      .addEventListener("click", _addSphere, false);
-  </script>
-  <!-- Allow the javascript to call C++ functions -->
 </body>
 
 </html>

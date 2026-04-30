@@ -21,6 +21,8 @@ public:
 
   inline BoxDimensions getDimensions() const { return dimensions; };
   inline void setDimensions(BoxDimensions const &dimensions) { this->dimensions = dimensions; };
+  /** Rebuild GPU buffers from current `dimensions` (call after `setDimensions`). */
+  void rebuildGeometry();
 
 private:
   void createVertices();

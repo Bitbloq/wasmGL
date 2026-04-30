@@ -14,6 +14,20 @@ Box::~Box()
 {
 }
 
+void Box::rebuildGeometry()
+{
+	ClearMesh();
+	vertices.clear();
+	normals.clear();
+	faces.clear();
+	indices.clear();
+	createVertices();
+	computeFaces();
+	createMesh();
+	threeBSPDone = false;
+	computeThreeBSP();
+}
+
 void Box::createVertices()
 {
 

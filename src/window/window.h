@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <array>
-#include <GL/glew.h>
+#include "wasmgl_gl.h"
 #include <GLFW/glfw3.h>
 
 #include <memory>

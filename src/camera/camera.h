@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include <memory>
-#include <GL/glew.h>
+#include "wasmgl_gl.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -14,6 +14,12 @@ public:
 
   void keyControl(std::shared_ptr<std::array<bool, 1024>> keys, GLfloat deltaTime);
   void mouseControl(GLfloat xChange, GLfloat yChange);
+  /** Orbit the view: yaw (left/right) and pitch (up/down), degrees. Pitch is clamped like mouse. */
+  void nudgeViewYawDegrees(GLfloat deltaYawDeg);
+  void nudgeViewPitchDegrees(GLfloat deltaPitchDeg);
+  /** Move camera in view space: forward (into scene), right (strafe), up (camera up), same units as position. */
+  void nudgePositionView(GLfloat alongFront, GLfloat alongRight, GLfloat alongUp);
+
   glm::mat4 calculateViewMatrix();
   glm::vec3 getPosition() const { return position; }
 

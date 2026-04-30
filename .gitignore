@@ -32,6 +32,12 @@
 *.app
 .vscode
 build/*
+build-wasm/
+emsdk/
+
+# Emscripten output (rebuild with ./compileWasm.sh)
+wasmbuild/*.js
+wasmbuild/*.wasm
 
 #CMake files
 CMakeCache.txt

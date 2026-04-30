@@ -42,6 +42,10 @@ public:
 
   inline SphereDimensions getDimensions() const { return dimensions; };
   inline void setDimensions(SphereDimensions const &dimensions) { this->dimensions = dimensions; };
+  inline SphereParameters getParameters() const { return parameters; }
+  inline void setParameters(SphereParameters const &p) { parameters = p; }
+  /** Rebuild GPU buffers from current `dimensions` / `parameters`. */
+  void rebuildGeometry();
 
 private:
   void createVertices();

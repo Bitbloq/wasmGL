@@ -1,5 +1,5 @@
-#ifndef CREATE_FUNTIONS_H
-#define CREATE_FUNTIONS_H
+#ifndef CREATE_FUNCTIONS_H
+#define CREATE_FUNCTIONS_H
 
 #include <memory>
 #include "mesh.h"
@@ -13,5 +13,6 @@ std::shared_ptr<Sphere> createSphere(SphereDimensions const &dimensions, SphereP
 
 std::shared_ptr<Mesh> rotate(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &rotation);
 std::shared_ptr<Mesh> translate(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &translation);
+std::shared_ptr<Mesh> scale(std::shared_ptr<Mesh> const &mesh, glm::vec3 const &scale);
 
-#endif // CREATE_FUNTIONS_H
+#endif

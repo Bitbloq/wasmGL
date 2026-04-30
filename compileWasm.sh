@@ -1,12 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Wasm build via CMake + Emscripten. Requires: source emsdk_env.sh (see README).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 
-# compile with docker image
-#docker run \
-  #--rm \
-  #-v $(pwd):/src \
-  #-u $(id -u):$(id -g) \
-  #emscripten/emsdk \
-  [ ! -d "./wasmbuild" ] && mkdir -p wasmbuild 
-  emcc -O3 -std=c++17 -pthread -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency -sEXPORTED_FUNCTIONS=_main,_addCube,_addSphere ./src/*.cpp ./src/*/*.cpp -I./src/include -s USE_GLFW=3 -s FULL_ES3=1 -s GL_ASSERTIONS=1 -s GL_DEBUG=1  -s WASM=1 -o wasmbuild/wasmGL.js 
-  #npx http-server -p=8080 wasmbuild -o main.html
-  emrun --port=8080 wasmbuild/mypage.html
+if ! command -v emcmake >/dev/null 2>&1; then
+  echo "emcmake not found. Install Emscripten and run: source /path/to/emsdk/emsdk_env.sh" >&2
+  exit 1
+fi
+
+mkdir -p wasmbuild
+BUILD_DIR="${WASMGL_BUILD_WASM_DIR:-${ROOT}/build-wasm}"
+emcmake cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$BUILD_DIR" -j"$(nproc 2>/dev/null || echo 4)"
+echo "Output: wasmbuild/wasmGL.js and wasmbuild/wasmGL.wasm"
+echo "Run:   emrun --port 8080 wasmbuild/mypage.html"
