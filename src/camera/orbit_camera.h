@@ -19,6 +19,7 @@ public:
 
   glm::mat4 calculateViewMatrix() const;
   glm::vec3 getPosition() const { return position_; }
+  glm::vec3 getTarget() const { return target_; }
 
   void setFovDegrees(GLfloat fov) { fovDegrees_ = fov; }
 
@@ -35,6 +36,9 @@ public:
   void nudgeViewYawDegrees(GLfloat deltaYawDeg);
   void nudgeViewPitchDegrees(GLfloat deltaPitchDeg);
   void nudgePositionView(GLfloat alongFront, GLfloat alongRight, GLfloat alongUp);
+
+  /** Spherical view angles matching internal orbit state (theta = atan2(y,x), phi = acos(z/r) from +Z). */
+  void snapOrbitToAngles(float theta, float phi, bool smoothTransition = true);
 
   void zoomInButton();
   void zoomOutButton();
