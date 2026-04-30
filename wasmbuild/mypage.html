@@ -242,7 +242,7 @@
       <h1>WasmGL</h1>
       <p class="lead">
         <strong>Canvas:</strong> left-drag orbit, right-drag pan, wheel zoom (same model as the TS OrbitCamera).
-        Use the panel to add solids, move and resize the <em>selected</em> object, nudge the <em>camera</em>, and run CSG on <em>two</em> chosen objects.
+        Use the panel to add solids, move and resize the <em>selected</em> object, and run CSG on <em>two</em> chosen objects.
       </p>
     </header>
 
@@ -497,34 +497,8 @@
         </div>
       </div>
 
-      <div class="card">
-        <h2>5 · Scene view <span class="badge">camera</span></h2>
-        <p class="section-desc">Orbit around the scene origin: panel buttons pan along view axes (dolly / strafe / up), orbit yaw/pitch, and zoom (dolly distance — same as wheel).</p>
-        <label class="field-label">Pan / dolly — step <span id="panStepLabel">0.08</span> m</label>
-        <div class="grid-3 compact">
-          <button type="button" class="pan-btn" data-dir="forward" title="Move camera forward">Forward</button>
-          <button type="button" class="pan-btn" data-dir="back">Back</button>
-          <button type="button" class="pan-btn" data-dir="left">Strafe L</button>
-          <button type="button" class="pan-btn" data-dir="right">Strafe R</button>
-          <button type="button" class="pan-btn" data-dir="up">Up</button>
-          <button type="button" class="pan-btn" data-dir="down">Down</button>
-        </div>
-        <label class="field-label" style="margin-top: 10px">Orbit — step <span id="viewOrbitStepLabel">6</span>°</label>
-        <div class="grid-3 compact">
-          <button type="button" class="view-orbit" data-kind="yaw" data-sign="-">Yaw −</button>
-          <button type="button" class="view-orbit" data-kind="yaw" data-sign="+">Yaw +</button>
-          <button type="button" class="view-orbit" data-kind="pitch" data-sign="+">Pitch +</button>
-          <button type="button" class="view-orbit" data-kind="pitch" data-sign="-">Pitch −</button>
-        </div>
-        <div class="btn-row" style="margin-top: 10px">
-          <button type="button" id="zoomIn">Zoom in (dolly)</button>
-          <button type="button" id="zoomOut">Zoom out (dolly)</button>
-          <button type="button" id="fullscreen">Fullscreen canvas</button>
-        </div>
-      </div>
-
       <div class="card" id="csgCard">
-        <h2>6 · Boolean CSG <span class="badge">two objects</span></h2>
+        <h2>5 · Boolean CSG <span class="badge">two objects</span></h2>
         <p class="section-desc">Pick operand <strong>A</strong> and <strong>B</strong> (different indices). Union and intersection are symmetric; <strong>difference</strong> is A − B.</p>
         <label class="field-label" for="operandA">Operand A</label>
         <select id="operandA" aria-label="CSG operand A">
@@ -545,14 +519,15 @@
     <main class="stage">
       <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
       <p class="status" id="statusLine"></p>
+      <div class="btn-row" style="margin-top: 4px; justify-content: center">
+        <button type="button" id="fullscreen">Fullscreen canvas</button>
+      </div>
     </main>
   </div>
 
   <script>
     var MOVE_STEP = 0.12;
     var ROT_STEP = 10;
-    var VIEW_ORBIT_STEP = 6;
-    var PAN_STEP = 0.08;
 
     var canvas = document.getElementById("canvas");
     var objectSelect = document.getElementById("objectSelect");
@@ -566,8 +541,6 @@
 
     document.getElementById("moveStepLabel").textContent = String(MOVE_STEP);
     document.getElementById("rotStepLabel").textContent = String(ROT_STEP);
-    document.getElementById("viewOrbitStepLabel").textContent = String(VIEW_ORBIT_STEP);
-    document.getElementById("panStepLabel").textContent = String(PAN_STEP);
 
     var addType = document.getElementById("addType");
     var addFieldGroups = {
@@ -899,37 +872,6 @@
           if (maj > 0 && minr > 0) Module._resizeSelectedTorus(maj, minr, rs, ts);
           refreshObjectList();
         });
-
-        document.getElementById("zoomIn").addEventListener("click", function () {
-          Module._cameraZoomIn();
-        });
-        document.getElementById("zoomOut").addEventListener("click", function () {
-          Module._cameraZoomOut();
-        });
-        var orbitBtns = document.querySelectorAll(".view-orbit");
-        for (var ob = 0; ob < orbitBtns.length; ob++) {
-          orbitBtns[ob].addEventListener("click", function (ev) {
-            var btn = ev.currentTarget;
-            var kind = btn.getAttribute("data-kind");
-            var sign = btn.getAttribute("data-sign") === "+" ? 1 : -1;
-            var step = VIEW_ORBIT_STEP * sign;
-            if (kind === "yaw") Module._cameraNudgeViewYawDegrees(step);
-            else Module._cameraNudgeViewPitchDegrees(step);
-          });
-        }
-        var panBtns = document.querySelectorAll(".pan-btn");
-        for (var pi = 0; pi < panBtns.length; pi++) {
-          panBtns[pi].addEventListener("click", function (ev) {
-            var dir = ev.currentTarget.getAttribute("data-dir");
-            var s = PAN_STEP;
-            if (dir === "forward") Module._cameraNudgePositionView(s, 0, 0);
-            else if (dir === "back") Module._cameraNudgePositionView(-s, 0, 0);
-            else if (dir === "right") Module._cameraNudgePositionView(0, s, 0);
-            else if (dir === "left") Module._cameraNudgePositionView(0, -s, 0);
-            else if (dir === "up") Module._cameraNudgePositionView(0, 0, s);
-            else if (dir === "down") Module._cameraNudgePositionView(0, 0, -s);
-          });
-        }
         refreshObjectList();
       },
     };
