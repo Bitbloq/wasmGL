@@ -541,7 +541,11 @@
     <main class="stage">
       <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
       <p class="status" id="statusLine"></p>
-      <div class="btn-row" style="margin-top: 4px; justify-content: center">
+      <div class="btn-row" style="margin-top: 4px; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap">
+        <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none">
+          <input type="checkbox" id="showGrid" checked />
+          Base grid
+        </label>
         <button type="button" id="fullscreen">Fullscreen canvas</button>
       </div>
     </main>
@@ -914,6 +918,13 @@
           if (maj > 0 && minr > 0) Module._resizeSelectedTorus(maj, minr, rs, ts);
           refreshObjectList();
         });
+        var showGrid = document.getElementById("showGrid");
+        function syncGridToggle() {
+          if (typeof Module._setBaseGridVisible === "function")
+            Module._setBaseGridVisible(showGrid.checked ? 1 : 0);
+        }
+        showGrid.addEventListener("change", syncGridToggle);
+        syncGridToggle();
         refreshObjectList();
       },
     };
