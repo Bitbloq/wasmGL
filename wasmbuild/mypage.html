@@ -10,8 +10,8 @@
       --bg: #0f1419;
       --panel: #1a2332;
       --border: #2d3a4d;
-      --text: #e8edf4;
-      --muted: #8b9cb3;
+      --text: #eef2f8;
+      --muted: #b8c6d8;
       --accent: #3d8bfd;
       --accent-dim: #2a5fad;
       --radius: 10px;
@@ -26,8 +26,8 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 14px;
-      line-height: 1.45;
+      font-size: 15px;
+      line-height: 1.5;
     }
 
     .app {
@@ -56,7 +56,7 @@
 
     header.shell-header .lead {
       margin: 0;
-      font-size: 0.8rem;
+      font-size: 0.95rem;
       color: var(--muted);
       max-width: 72ch;
     }
@@ -91,16 +91,16 @@
 
     .card h2 {
       margin: 0 0 10px 0;
-      font-size: 0.72rem;
+      font-size: 0.82rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--muted);
+      color: #a8b8cc;
       font-weight: 600;
     }
 
     .section-desc {
-      font-size: 0.78rem;
-      color: var(--muted);
+      font-size: 0.88rem;
+      color: #c4d0e0;
       margin: 0 0 10px 0;
       line-height: 1.4;
     }
@@ -150,7 +150,7 @@
       border: 1px solid var(--border);
       background: #0d1218;
       color: var(--text);
-      font-size: 13px;
+      font-size: 14px;
       margin-bottom: 8px;
     }
 
@@ -163,10 +163,10 @@
 
     .field-label {
       display: block;
-      font-size: 0.7rem;
+      font-size: 0.78rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--muted);
+      color: #a8b5c8;
       margin: 8px 0 4px;
     }
 
@@ -185,8 +185,8 @@
     }
 
     .grid-3 > label, .grid-2 > .span-2 {
-      font-size: 0.7rem;
-      color: var(--muted);
+      font-size: 0.78rem;
+      color: #b0bfd4;
       text-align: center;
       grid-column: 1 / -1;
     }
@@ -217,14 +217,14 @@
 
     .status {
       margin-top: 10px;
-      font-size: 0.8rem;
-      color: var(--muted);
+      font-size: 0.9rem;
+      color: #b8c6d8;
       text-align: center;
     }
 
     .csg-hint {
-      font-size: 0.78rem;
-      color: var(--muted);
+      font-size: 0.88rem;
+      color: #c4d0e0;
       margin: 8px 0 10px;
       line-height: 1.4;
     }
@@ -545,6 +545,10 @@
         <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none">
           <input type="checkbox" id="showGrid" checked />
           Base grid
+        </label>
+        <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none">
+          <input type="checkbox" id="showAxes" checked />
+          Axis helper
         </label>
         <button type="button" id="fullscreen">Fullscreen canvas</button>
       </div>
@@ -919,12 +923,19 @@
           refreshObjectList();
         });
         var showGrid = document.getElementById("showGrid");
+        var showAxes = document.getElementById("showAxes");
         function syncGridToggle() {
           if (typeof Module._setBaseGridVisible === "function")
             Module._setBaseGridVisible(showGrid.checked ? 1 : 0);
         }
+        function syncAxesToggle() {
+          if (typeof Module._setAxisHelperVisible === "function")
+            Module._setAxisHelperVisible(showAxes.checked ? 1 : 0);
+        }
         showGrid.addEventListener("change", syncGridToggle);
+        showAxes.addEventListener("change", syncAxesToggle);
         syncGridToggle();
+        syncAxesToggle();
         refreshObjectList();
       },
     };

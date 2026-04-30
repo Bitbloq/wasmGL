@@ -82,6 +82,9 @@ WASMGL_KEEP void performBooleanIntersection(void);
 /** 1 = show Bitbloq-style base grid (XY plane), 0 = hide. */
 WASMGL_KEEP void setBaseGridVisible(int visible);
 
+/** 1 = show bottom-right world axis helper (RGB = XYZ), 0 = hide. */
+WASMGL_KEEP void setAxisHelperVisible(int visible);
+
 #ifdef __cplusplus
 }
 #endif

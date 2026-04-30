@@ -17,8 +17,13 @@ public:
 
 	int Initialise();
 
+	/** Refresh from GLFW; call each frame on wasm so canvas / DPR resizes match the GL viewport. */
+	void syncFramebufferSize();
+
 	GLint getBufferWidth() { return bufferWidth; }
 	GLint getBufferHeight() { return bufferHeight; }
+
+	GLFWwindow *getGLFWWindow() const { return mainWindow; }
 
 	bool getShouldClose() { return glfwWindowShouldClose(mainWindow); }
 	inline std::shared_ptr<std::array<bool, 1024>> getKeys() const { return pKeys; }

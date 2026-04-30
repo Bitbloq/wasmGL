@@ -87,6 +87,18 @@ int Window::Initialise()
 	return 0;
 }
 
+void Window::syncFramebufferSize()
+{
+	if (!mainWindow)
+		return;
+	glfwGetFramebufferSize(mainWindow, &bufferWidth, &bufferHeight);
+	if (bufferWidth < 1)
+		bufferWidth = 1;
+	if (bufferHeight < 1)
+		bufferHeight = 1;
+	glViewport(0, 0, bufferWidth, bufferHeight);
+}
+
 Window::~Window()
 {
 	glfwDestroyWindow(mainWindow);

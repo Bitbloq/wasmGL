@@ -20,6 +20,8 @@
 #include "shaders/shader.h"
 #include "camera/orbit_camera.h"
 #include "grid/base_grid.h"
+#include "overlay/axis_helper.h"
+#include "overlay/navigation_cube.h"
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 #include "core/mesh.h"
@@ -48,6 +50,8 @@ static int g_boolOperandB{-1};
 Shader litShader;
 Shader lineShader;
 BaseGridRenderer g_baseGrid;
+AxisHelperOverlay g_axisHelper;
+NavigationCubeOverlay g_navigationCube;
 OrbitCamera orbitCamera(glm::vec3(13.5f, 13.5f, 15.5f), glm::vec3(0.0f));
 
 namespace
@@ -210,6 +214,8 @@ int main()
 
 	CreateShaders();
 	g_baseGrid.initShaders();
+	g_axisHelper.init();
+	g_navigationCube.init();
 
 	refreshProjection();
 
@@ -247,6 +253,8 @@ void mainloop()
 
 	glfwPollEvents();
 
+	mainWindow.syncFramebufferSize();
+
 	GLfloat const canvasW = static_cast<GLfloat>(std::max(1, mainWindow.getBufferWidth()));
 	GLfloat const canvasH = static_cast<GLfloat>(std::max(1, mainWindow.getBufferHeight()));
 	GLfloat const xDelta = mainWindow.getXChange();
@@ -254,10 +262,31 @@ void mainloop()
 
 	bool const leftDown = mainWindow.isLeftButtonPressed();
 	bool const rightDown = mainWindow.isRightButtonPressed();
-	orbitCamera.setDragging(leftDown || rightDown);
+
+	static bool s_prevLeftDown = false;
+	static bool s_suppressOrbitLeftDrag = false;
+	GLfloat cursorFbX{};
+	GLfloat cursorFbY{};
+	NavigationCubeOverlay::cursorFramebufferPixels(mainWindow.getGLFWWindow(), cursorFbX, cursorFbY);
+	g_navigationCube.syncHover(orbitCamera, cursorFbX, cursorFbY, canvasW, canvasH);
+	if (!leftDown)
+		s_suppressOrbitLeftDrag = false;
+	if (leftDown && !s_prevLeftDown)
+	{
+		float navTheta{};
+		float navPhi{};
+		if (g_navigationCube.pick(orbitCamera, cursorFbX, cursorFbY, canvasW, canvasH, &navTheta, &navPhi))
+		{
+			orbitCamera.snapOrbitToAngles(navTheta, navPhi, true);
+			s_suppressOrbitLeftDrag = true;
+		}
+	}
+	s_prevLeftDown = leftDown;
+
+	orbitCamera.setDragging((leftDown || rightDown) && !s_suppressOrbitLeftDrag);
 
 	orbitCamera.keyControl(mainWindow.getKeys(), deltaTime);
-	if (leftDown)
+	if (leftDown && !s_suppressOrbitLeftDrag)
 		orbitCamera.applyRotatePixels(xDelta, yDelta, canvasW, canvasH);
 	else if (rightDown)
 		orbitCamera.applyPanPixels(xDelta, yDelta, canvasW, canvasH);
@@ -267,7 +296,7 @@ void mainloop()
 
 	refreshProjection();
 
-	glClearColor(0.72f, 0.74f, 0.78f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 view = orbitCamera.calculateViewMatrix();
@@ -308,6 +337,9 @@ void mainloop()
 	}
 
 	glUseProgram(0);
+	g_axisHelper.render(orbitCamera);
+	g_navigationCube.render(orbitCamera);
+
 	mainWindow.swapBuffers();
 }
 
@@ -807,6 +839,11 @@ void cameraNudgePositionView(float alongFront, float alongRight, float alongUp)
 void setBaseGridVisible(int visible)
 {
 	g_baseGrid.setVisible(visible != 0);
+}
+
+void setAxisHelperVisible(int visible)
+{
+	g_axisHelper.setVisible(visible != 0);
 }
 
 }

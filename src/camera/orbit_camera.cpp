@@ -218,6 +218,11 @@ void OrbitCamera::nudgePositionView(GLfloat alongFront, GLfloat alongRight, GLfl
   truck(alongRight, alongUp, true);
 }
 
+void OrbitCamera::snapOrbitToAngles(float theta, float phi, bool smoothTransition)
+{
+  rotateTo(theta, phi, smoothTransition);
+}
+
 void OrbitCamera::keyControl(std::shared_ptr<std::array<bool, 1024>> keys, GLfloat deltaTime)
 {
   float const k = movementSpeed_ * deltaTime;

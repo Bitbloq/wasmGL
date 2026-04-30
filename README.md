@@ -2,6 +2,13 @@
 
 This project builds a small **Constructive Solid Geometry (CSG)** demo: BSP-style union, subtract, and intersect on meshes, plus translate / rotate / scale. The primary target is **WebAssembly** with **Emscripten** and **WebGL2**; the same sources compile to a **native** OpenGL 3.3 + GLFW application for debugging.
 
+## Documentation
+
+| Document | Audience |
+|----------|----------|
+| This README | Build, layout, run demo, quick JS note |
+| **[`docs/WEB_DEVELOPERS.md`](docs/WEB_DEVELOPERS.md)** | **Web developers:** embed `wasmGL.js` / `wasmGL.wasm`, `Module` lifecycle, full exported API reference |
+
 ## Layout (maintainability)
 
 | Area | Role |
@@ -25,6 +32,8 @@ sudo apt install build-essential cmake pkg-config \
 ```
 
 GLM is vendored under [`src/include/glm`](src/include/glm).
+
+There are **no additional packages** beyond the above for UI overlays (axis helper, navigation cube): they use the same OpenGL / GLFW stack and procedural textures only.
 
 ### Emscripten (wasm)
 
@@ -67,11 +76,21 @@ cmake --build build -j
 
 ## Run the wasm demo
 
+**Emscripten (opens a browser if available):**
+
 ```bash
 emrun --port 8080 wasmbuild/mypage.html
 ```
 
-Or any static HTTP server whose root contains `wasmbuild/` (so `wasmGL.js` resolves next to `mypage.html`).
+**Python (no Emscripten required):** from the repo root, serve the `wasmbuild` folder so `mypage.html` and `wasmGL.js` sit at the same URL path level:
+
+```bash
+python3 -m http.server 8080 --directory wasmbuild
+```
+
+Then open `http://localhost:8080/mypage.html`.
+
+Any other static HTTP server works as long as its document root is `wasmbuild/` (so `wasmGL.js` resolves next to `mypage.html`).
 
 ### pthreads (optional)
 
@@ -79,12 +98,14 @@ This default build does **not** use pthreads, so you do **not** need `Cross-Orig
 
 ## JavaScript API (exported C functions)
 
-Declared in [`wasmgl_exports.h`](src/include/wasmgl_exports.h). Typical usage:
+For **embedding, `Module` setup, and a table of every public function**, see **[`docs/WEB_DEVELOPERS.md`](docs/WEB_DEVELOPERS.md)**.
+
+Declared in [`wasmgl_exports.h`](src/include/wasmgl_exports.h). Minimal usage:
 
 ```javascript
 Module.onRuntimeInitialized = function () {
   Module._addCube(1, 1, 1);
-  Module._addSphere();
+  Module._addSphere(0.4, 16, 16);
 };
 ```
 
