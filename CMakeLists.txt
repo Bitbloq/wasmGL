@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Source list: avoid GLOB so adds/removes are explicit in version control
 set(WASMGL_SOURCES
   src/main.cpp
-  src/camera/camera.cpp
+  src/camera/orbit_camera.cpp
   src/core/color.cpp
   src/core/face3.cpp
   src/core/functions.cpp

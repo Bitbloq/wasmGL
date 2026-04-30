@@ -24,6 +24,10 @@ public:
 	inline std::shared_ptr<std::array<bool, 1024>> getKeys() const { return pKeys; }
 	GLfloat getXChange();
 	GLfloat getYChange();
+	GLfloat getScrollY();
+
+	bool isLeftButtonPressed() const { return leftButtonPressed; }
+	bool isRightButtonPressed() const { return rightButtonPressed; }
 
 	void swapBuffers() { glfwSwapBuffers(mainWindow); }
 
@@ -37,6 +41,7 @@ private:
 
 	std::shared_ptr<std::array<bool, 1024>> pKeys;
 	GLfloat lastX, lastY, xChange, yChange;
+	GLfloat scrollY;
 	bool leftButtonPressed, rightButtonPressed;
 	bool mouseFirstMoved;
 
@@ -44,6 +49,7 @@ private:
 	static void handleKeys(GLFWwindow *window, int key, int code, int action, int mode);
 	static void handleMouseMovement(GLFWwindow *window, double xPos, double yPos);
 	static void handleMouseButton(GLFWwindow *window, int button, int action, int mods);
+	static void handleScroll(GLFWwindow *window, double xOffset, double yOffset);
 };
 
 #endif
