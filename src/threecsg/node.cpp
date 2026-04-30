@@ -86,11 +86,20 @@ void Node::build(vector<shared_ptr<Polygon>> const &polygons)
 
 void Node::collectPolygons(vector<shared_ptr<Polygon>> &out) const
 {
-  out.insert(out.end(), this->polygons.begin(), this->polygons.end());
-  if (this->front)
-    this->front->collectPolygons(out);
-  if (this->back)
-    this->back->collectPolygons(out);
+  /** Iterative preorder (polygons at node, then front subtree, then back) avoids deep
+   *  recursion on tall BSP trees — same order as the prior recursive implementation. */
+  vector<Node const *> stack;
+  stack.push_back(this);
+  while (!stack.empty())
+  {
+    Node const *n = stack.back();
+    stack.pop_back();
+    out.insert(out.end(), n->polygons.begin(), n->polygons.end());
+    if (n->back)
+      stack.push_back(n->back.get());
+    if (n->front)
+      stack.push_back(n->front.get());
+  }
 }
 
 vector<shared_ptr<Polygon>> Node::allPolygons() const
