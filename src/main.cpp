@@ -37,7 +37,7 @@
 
 Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
-/** UI labels: 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus (wasmgl_exports.h). */
+/** UI labels: 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus, 7 cone (wasmgl_exports.h). */
 std::vector<int> meshObjectKinds;
 static int g_selectedIndex{-1};
 /** Indices for constructive solid ops (union / subtract / intersect). Must differ. */
@@ -347,6 +347,19 @@ void addCylinder(float radiusBottom, float radiusTop, float height, int radialSe
 	cyl->setSolidColor(glm::vec3(0.24f, 0.78f, 0.45f));
 	meshList.push_back(cyl);
 	meshObjectKinds.push_back(5);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+}
+
+void addCone(float radius, float height, int radialSeg, int heightSeg)
+{
+	int const rseg = std::max(3, radialSeg);
+	int const hseg = std::max(1, heightSeg);
+	auto cone = createCylinder(
+			CylinderDimensions{std::max(1e-4f, radius), 0.0f, std::max(1e-4f, height)},
+			CylinderParameters{rseg, hseg});
+	cone->setSolidColor(glm::vec3(0.95f, 0.42f, 0.28f));
+	meshList.push_back(cone);
+	meshObjectKinds.push_back(7);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
 }
 

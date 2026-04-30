@@ -4,7 +4,7 @@
  * Keep this list in sync with CMake Emscripten flags:
  *   -sEXPORTED_FUNCTIONS=[_main,_addCube,...]
  *
- * Object kind (getObjectKind): 0 unknown, 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus.
+ * Object kind (getObjectKind): 0 unknown, 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus, 7 cone (solid).
  */
 
 #ifndef WASMGL_EXPORTS_H
@@ -27,6 +27,8 @@ WASMGL_KEEP void addSphere(float radius, int widthSeg, int heightSeg);
 WASMGL_KEEP void addPyramid(float side, float height);
 /** Y-axis cylinder / truncated cylinder; equal radii = right cylinder. */
 WASMGL_KEEP void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg);
+/** Solid cone (apex up): same mesh as cylinder with top radius 0 (Three.js ConeGeometry-style). */
+WASMGL_KEEP void addCone(float radius, float height, int radialSeg, int heightSeg);
 /** Ring in XY plane; major = hole-to-tube-center, minor = tube radius. */
 WASMGL_KEEP void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
 
