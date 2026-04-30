@@ -41,7 +41,7 @@ if(EMSCRIPTEN)
     "SHELL:-sUSE_GLFW=3"
     "SHELL:-sMIN_WEBGL_VERSION=2"
     "SHELL:-sALLOW_MEMORY_GROWTH=1"
-    "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_cameraZoomIn,_cameraZoomOut,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection]"
+    "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_cameraZoomIn,_cameraZoomOut,_cameraNudgeViewYawDegrees,_cameraNudgeViewPitchDegrees,_cameraNudgePositionView,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_getSelectedBoxWidth,_getSelectedBoxHeight,_getSelectedBoxDepth,_getSelectedSphereRadius,_getSelectedSphereWidthSegments,_getSelectedSphereHeightSegments,_resizeSelectedBox,_resizeSelectedSphere,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection]"
   )
 else()
   find_package(OpenGL REQUIRED)

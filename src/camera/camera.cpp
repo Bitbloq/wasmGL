@@ -68,6 +68,29 @@ void Camera::mouseControl(GLfloat xChange, GLfloat yChange)
   udpate();
 }
 
+void Camera::nudgeViewYawDegrees(GLfloat deltaYawDeg)
+{
+  yaw += deltaYawDeg;
+  udpate();
+}
+
+void Camera::nudgeViewPitchDegrees(GLfloat deltaPitchDeg)
+{
+  pitch += deltaPitchDeg;
+  if (pitch > 89.0f)
+    pitch = 89.0f;
+  if (pitch < -89.0f)
+    pitch = -89.0f;
+  udpate();
+}
+
+void Camera::nudgePositionView(GLfloat alongFront, GLfloat alongRight, GLfloat alongUp)
+{
+  position += front * alongFront;
+  position += right * alongRight;
+  position += up * alongUp;
+}
+
 void Camera::udpate()
 {
   glm::vec3 front;

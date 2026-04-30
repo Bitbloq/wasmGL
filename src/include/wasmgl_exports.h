@@ -22,37 +22,43 @@
 extern "C" {
 #endif
 
-/** Adds an axis-aligned box mesh (half-extents derived from dimensions). */
-WASMGL_KEEP void addCube(int width, int height, int depth);
+/** Adds an axis-aligned box: full width, height, depth in world units (see createBox). */
+WASMGL_KEEP void addCube(float width, float height, float depth);
 
-/** Adds a UV sphere with fixed tessellation (see implementation). */
-WASMGL_KEEP void addSphere(void);
+/** UV sphere: radius, segment counts (clamped: width ≥ 3, height ≥ 2). */
+WASMGL_KEEP void addSphere(float radius, int widthSeg, int heightSeg);
 
-/** Widen FOV (dolly out). */
 WASMGL_KEEP void cameraZoomOut(void);
-/** Narrow FOV (dolly in). */
 WASMGL_KEEP void cameraZoomIn(void);
+WASMGL_KEEP void cameraNudgeViewYawDegrees(float deltaDeg);
+WASMGL_KEEP void cameraNudgeViewPitchDegrees(float deltaDeg);
+/** Pan / dolly camera in view space: forward, right (strafe), up — world units per step. */
+WASMGL_KEEP void cameraNudgePositionView(float alongFront, float alongRight, float alongUp);
 
-/** Number of meshes in the scene (same order as added). */
 WASMGL_KEEP int getSceneObjectCount(void);
-/** Select object by index, or a negative idx to clear selection. */
 WASMGL_KEEP void setSelectedObjectIndex(int idx);
-/** Current selection index, or -1 if none. */
 WASMGL_KEEP int getSelectedObjectIndex(void);
-/** 0 unknown, 1 cube, 2 sphere — for UI labels. */
+/** 0 unknown, 1 cube, 2 sphere, 3 CSG result — for UI labels. */
 WASMGL_KEEP int getObjectKind(int index);
 
-/** Move selected object in world space (metres). */
+/** Read selected mesh dimensions; 0 if not a box / not selected. */
+WASMGL_KEEP float getSelectedBoxWidth(void);
+WASMGL_KEEP float getSelectedBoxHeight(void);
+WASMGL_KEEP float getSelectedBoxDepth(void);
+WASMGL_KEEP float getSelectedSphereRadius(void);
+WASMGL_KEEP int getSelectedSphereWidthSegments(void);
+WASMGL_KEEP int getSelectedSphereHeightSegments(void);
+/** Rebuild selected box or sphere from new parameters (no-op for CSG or wrong type). */
+WASMGL_KEEP void resizeSelectedBox(float width, float height, float depth);
+WASMGL_KEEP void resizeSelectedSphere(float radius, int widthSeg, int heightSeg);
+
 WASMGL_KEEP void nudgeSelectedTranslate(float dx, float dy, float dz);
-/** Rotate selected object (degrees, Euler X then Y then Z to match Mesh::rotate). */
 WASMGL_KEEP void nudgeSelectedRotateDegrees(float rxDeg, float ryDeg, float rzDeg);
 
-/** Boolean CSG: choose two distinct scene indices (negative clears). */
 WASMGL_KEEP void setBooleanOperandA(int idx);
 WASMGL_KEEP void setBooleanOperandB(int idx);
 WASMGL_KEEP int getBooleanOperandA(void);
 WASMGL_KEEP int getBooleanOperandB(void);
-/** Replace both operands with one new mesh: union, A minus B, or intersection. */
 WASMGL_KEEP void performBooleanUnion(void);
 WASMGL_KEEP void performBooleanDifference(void);
 WASMGL_KEEP void performBooleanIntersection(void);

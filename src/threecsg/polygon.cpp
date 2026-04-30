@@ -1,6 +1,7 @@
 #include "polygon.h"
 #include "types.h"
 #include <algorithm>
+#include <glm/glm.hpp>
 
 Polygon::Polygon(vector<shared_ptr<Vertex>> const &vertices)
     : vertices(vertices)
@@ -18,28 +19,29 @@ Polygon::Polygon(vector<shared_ptr<Vertex>> const &vertices)
 
 void Polygon::calculateProperties()
 {
-  auto a = vertices.at(0);
-  auto b = vertices.at(1);
-  auto c = vertices.at(2);
+  auto const &a = vertices.at(0);
+  auto const &b = vertices.at(1);
+  auto const &c = vertices.at(2);
 
-  this->normal = b->clone()->subtract(a)->cross(c->clone()->subtract(a))->normalize();
-  this->w = this->normal->clone()->dot(a);
+  glm::vec3 const e1 = b->position - a->position;
+  glm::vec3 const e2 = c->position - a->position;
+  glm::vec3 const n = glm::normalize(glm::cross(e1, e2));
+  this->normal = std::make_shared<Vertex>(Vertex(n, glm::vec3(), glm::vec2()));
+  this->w = glm::dot(n, a->position);
 }
 
 shared_ptr<Polygon> Polygon::clone() const
 {
   auto polygon = make_shared<Polygon>(Polygon());
-  for (auto vertex : vertices)
-  {
+  polygon->vertices.reserve(vertices.size());
+  for (auto const &vertex : vertices)
     polygon->vertices.push_back(vertex->clone());
-  }
   polygon->calculateProperties();
   return polygon;
 }
 
 shared_ptr<Polygon> Polygon::flip()
 {
-  vector<shared_ptr<Vertex>> vertices_clone;
   this->normal = this->normal->multiplyScalar(-1);
   this->w *= -1;
   std::reverse(this->vertices.begin(), this->vertices.end());
@@ -48,7 +50,7 @@ shared_ptr<Polygon> Polygon::flip()
 
 CLASSIFICATION Polygon::classifyVertex(shared_ptr<Vertex> const &vertex)
 {
-  auto side_value = this->normal->dot(vertex) - this->w;
+  float const side_value = glm::dot(this->normal->position, vertex->position) - this->w;
   if (side_value < -EPSILON)
   {
     return BACK;
@@ -66,7 +68,7 @@ CLASSIFICATION Polygon::classifySide(shared_ptr<Polygon> const &polygon)
 {
   int num_positive{0};
   int num_negative{0};
-  for (auto vertex : polygon->vertices)
+  for (auto const &vertex : polygon->vertices)
   {
     auto classification = classifyVertex(vertex);
     if (classification == FRONT)
@@ -120,11 +122,15 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
   {
     vector<shared_ptr<Vertex>> front_vertices;
     vector<shared_ptr<Vertex>> back_vertices;
-    for (size_t i{0}; i < polygon->vertices.size(); i++)
+    size_t const n = polygon->vertices.size();
+    front_vertices.reserve(n + 2);
+    back_vertices.reserve(n + 2);
+    glm::vec3 const planeN = this->normal->position;
+    for (size_t i{0}; i < n; i++)
     {
-      auto j = (i + 1) % polygon->vertices.size();
-      auto vi = polygon->vertices.at(i);
-      auto vj = polygon->vertices.at(j);
+      size_t const j = (i + 1) % n;
+      auto const &vi = polygon->vertices.at(i);
+      auto const &vj = polygon->vertices.at(j);
       auto ti = this->classifyVertex(vi);
       auto tj = this->classifyVertex(vj);
       if (ti != BACK)
@@ -137,7 +143,9 @@ void Polygon::splitPolygon(shared_ptr<Polygon> const &polygon, vector<shared_ptr
       }
       if ((ti | tj) == CLASSIFICATION::SPANNING)
       {
-        auto t = (this->w - this->normal->dot(vi)) / (this->normal->dot(vj->clone()->subtract(vi)));
+        glm::vec3 const edge = vj->position - vi->position;
+        float const denom = glm::dot(planeN, edge);
+        float const t = (this->w - glm::dot(planeN, vi->position)) / denom;
         auto v = vi->interpolate(vj, t);
         front_vertices.push_back(v);
         back_vertices.push_back(v);

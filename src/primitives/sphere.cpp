@@ -13,6 +13,20 @@ Sphere::~Sphere()
 {
 }
 
+void Sphere::rebuildGeometry()
+{
+	ClearMesh();
+	vertices.clear();
+	normals.clear();
+	faces.clear();
+	indices.clear();
+	createVertices();
+	computeFaces();
+	createMesh();
+	threeBSPDone = false;
+	computeThreeBSP();
+}
+
 void Sphere::createVertices()
 {
   auto radius = dimensions.radius;

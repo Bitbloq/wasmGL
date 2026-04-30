@@ -3,8 +3,6 @@
 #include "glm/glm.hpp"
 #include <map>
 #include "../complexobjects/csgmesh.h"
-#include <iostream>
-#include <chrono>
 #include <set>
 
 using namespace std;
@@ -28,6 +26,7 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
   matrix = mesh->getModelMatrix();
   auto geometry = mesh;
   vector<shared_ptr<Polygon>> polygons;
+  polygons.reserve(geometry->faces.size());
 
   for (size_t i{0}; i < geometry->faces.size(); i++)
   {
@@ -64,7 +63,6 @@ ThreeBSP::ThreeBSP(shared_ptr<Mesh> const &mesh)
 
 shared_ptr<ThreeBSP> ThreeBSP::subtract(shared_ptr<ThreeBSP> const &other_tree)
 {
-  auto init1 = chrono::high_resolution_clock::now();
   auto a = this->tree->clone();
   auto b = other_tree->tree->clone();
 
@@ -98,46 +96,17 @@ shared_ptr<ThreeBSP> ThreeBSP::add(shared_ptr<ThreeBSP> const &other_tree)
 
 shared_ptr<ThreeBSP> ThreeBSP::intersect(shared_ptr<ThreeBSP> const &other_tree)
 {
-  // auto t1 = chrono::high_resolution_clock::now();
   auto a = this->tree->clone();
-  // auto t2 = chrono::high_resolution_clock::now();
   auto b = other_tree->tree->clone();
-  // auto t3 = chrono::high_resolution_clock::now();
   a->invert();
-  // auto t4 = chrono::high_resolution_clock::now();
   b->clipTo(a);
-  // auto t5 = chrono::high_resolution_clock::now();
   b->invert();
-  // auto t6 = chrono::high_resolution_clock::now();
   a->clipTo(b);
-  // auto t7 = chrono::high_resolution_clock::now();
   b->clipTo(a);
-  // auto t8 = chrono::high_resolution_clock::now();
   a->build(b->allPolygons());
-  // auto t9 = chrono::high_resolution_clock::now();
   a->invert();
-  // auto t10 = chrono::high_resolution_clock::now();
   auto absp = make_shared<ThreeBSP>(ThreeBSP(a));
-  // auto t11 = chrono::high_resolution_clock::now();
   absp->matrix = this->matrix;
-  // auto t12 = chrono::high_resolution_clock::now();
-
-#ifdef LOGGING
-  std::cout << "Intersect times breakout\n--------------------------------\n";
-  std::cout << chrono::duration_cast<chrono::microseconds>(t2 - t1).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t3 - t2).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t4 - t3).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t5 - t4).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t6 - t5).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t7 - t6).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t8 - t7).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t9 - t8).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t10 - t9).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t11 - t10).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t12 - t11).count() << std::endl;
-  std::cout << chrono::duration_cast<chrono::microseconds>(t12 - t1).count() << std::endl;
-  std::cout << "Intersect times breakout\n--------------------------------\n";
-#endif
 
   return absp;
 }
@@ -149,6 +118,14 @@ shared_ptr<CSGMesh> ThreeBSP::toMesh()
   *matrix = glm::inverse(*matrix);
   auto mesh = make_shared<CSGMesh>();
   auto polygons = this->tree->allPolygons();
+  size_t faceTotal = 0;
+  for (auto const &poly : polygons)
+  {
+    if (poly->vertices.size() > 2)
+      faceTotal += poly->vertices.size() - 2;
+  }
+  mesh->faces.reserve(faceTotal);
+  mesh->indices.reserve(faceTotal * 3);
 
   for (size_t i{0}; i < polygons.size(); i++)
   {

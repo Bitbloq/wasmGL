@@ -21,6 +21,9 @@ public:
   void clipTo(shared_ptr<Node> const &node);
 
 private:
+  /** Depth-first aggregate without intermediate vectors (same order as recursive merge). */
+  void collectPolygons(vector<shared_ptr<Polygon>> &out) const;
+
   vector<shared_ptr<Polygon>> polygons;
   shared_ptr<Node> front;
   shared_ptr<Node> back;

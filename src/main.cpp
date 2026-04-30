@@ -22,6 +22,8 @@
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 #include "core/mesh.h"
+#include "primitives/box.h"
+#include "primitives/sphere.h"
 
 #include "./core/functions.h"
 #include "wasmgl_exports.h"
@@ -280,10 +282,12 @@ void mainloop()
 
 extern "C" {
 
-void addCube(int width, int height, int depth)
+void addCube(float width, float height, float depth)
 {
-	auto cube = createBox(BoxDimensions{
-			static_cast<GLfloat>(width), static_cast<GLfloat>(height), static_cast<GLfloat>(depth)});
+	GLfloat const w = std::max(1e-4f, width);
+	GLfloat const h = std::max(1e-4f, height);
+	GLfloat const d = std::max(1e-4f, depth);
+	auto cube = createBox(BoxDimensions{w, h, d});
 	cube->setSolidColor(glm::vec3(0.92f, 0.48f, 0.18f));
 	cube->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
 	cube->computeThreeBSP();
@@ -292,9 +296,13 @@ void addCube(int width, int height, int depth)
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
 }
 
-void addSphere(void)
+void addSphere(float radius, int widthSeg, int heightSeg)
 {
-	auto sphere = createSphere(SphereDimensions{0.4f}, SphereParameters{16, 16, 0.0f, 2 * M_PI, 0.0f, M_PI});
+	int const ws = std::max(3, widthSeg);
+	int const hs = std::max(2, heightSeg);
+	auto sphere = createSphere(
+			SphereDimensions{std::max(0.01f, radius)},
+			SphereParameters{ws, hs, 0.0f, 2.0f * static_cast<float>(M_PI), 0.0f, static_cast<float>(M_PI)});
 	sphere->setSolidColor(glm::vec3(0.22f, 0.52f, 0.95f));
 	meshList.push_back(sphere);
 	meshObjectKinds.push_back(2);
@@ -329,6 +337,97 @@ int getObjectKind(int index)
 	if (index < 0 || index >= static_cast<int>(meshObjectKinds.size()))
 		return 0;
 	return meshObjectKinds[static_cast<size_t>(index)];
+}
+
+float getSelectedBoxWidth(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!b)
+		return 0.0f;
+	return b->getDimensions().width;
+}
+
+float getSelectedBoxHeight(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!b)
+		return 0.0f;
+	return b->getDimensions().height;
+}
+
+float getSelectedBoxDepth(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!b)
+		return 0.0f;
+	return b->getDimensions().depth;
+}
+
+float getSelectedSphereRadius(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0.0f;
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!s)
+		return 0.0f;
+	return s->getDimensions().radius;
+}
+
+int getSelectedSphereWidthSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!s)
+		return 0;
+	return s->getParameters().widthSegments;
+}
+
+int getSelectedSphereHeightSegments(void)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return 0;
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!s)
+		return 0;
+	return s->getParameters().heightSegments;
+}
+
+void resizeSelectedBox(float width, float height, float depth)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return;
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!b)
+		return;
+	GLfloat const w = std::max(1e-4f, width);
+	GLfloat const h = std::max(1e-4f, height);
+	GLfloat const d = std::max(1e-4f, depth);
+	b->setDimensions(BoxDimensions{w, h, d});
+	b->rebuildGeometry();
+}
+
+void resizeSelectedSphere(float radius, int widthSeg, int heightSeg)
+{
+	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+		return;
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	if (!s)
+		return;
+	int const ws = std::max(3, widthSeg);
+	int const hs = std::max(2, heightSeg);
+	s->setDimensions(SphereDimensions{std::max(0.01f, radius)});
+	SphereParameters p = s->getParameters();
+	p.widthSegments = ws;
+	p.heightSegments = hs;
+	s->setParameters(p);
+	s->rebuildGeometry();
 }
 
 void nudgeSelectedTranslate(float dx, float dy, float dz)
@@ -448,6 +547,21 @@ void cameraZoomIn(void)
 void cameraZoomOut(void)
 {
 	g_fovDegrees = std::min(85.0f, g_fovDegrees + 3.0f);
+}
+
+void cameraNudgeViewYawDegrees(float deltaDeg)
+{
+	camera.nudgeViewYawDegrees(deltaDeg);
+}
+
+void cameraNudgeViewPitchDegrees(float deltaDeg)
+{
+	camera.nudgeViewPitchDegrees(deltaDeg);
+}
+
+void cameraNudgePositionView(float alongFront, float alongRight, float alongUp)
+{
+	camera.nudgePositionView(alongFront, alongRight, alongUp);
 }
 
 }
