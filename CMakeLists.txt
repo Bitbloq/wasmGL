@@ -37,9 +37,12 @@ if(EMSCRIPTEN)
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/wasmbuild"
   )
   # Keep in sync with src/include/wasmgl_exports.h
+  # BSP/CSG recursion can run very deep on large meshes; default wasm stack is small and
+  # overflows manifest as uncaught RuntimeError: memory access out of bounds.
   target_link_options(wasmgl PRIVATE
     "SHELL:-sUSE_GLFW=3"
     "SHELL:-sMIN_WEBGL_VERSION=2"
+    "SHELL:-sSTACK_SIZE=33554432"
     "SHELL:-sALLOW_MEMORY_GROWTH=1"
     "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_cameraZoomIn,_cameraZoomOut,_cameraNudgeViewYawDegrees,_cameraNudgeViewPitchDegrees,_cameraNudgePositionView,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_getSelectedBoxWidth,_getSelectedBoxHeight,_getSelectedBoxDepth,_getSelectedSphereRadius,_getSelectedSphereWidthSegments,_getSelectedSphereHeightSegments,_resizeSelectedBox,_resizeSelectedSphere,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection]"
   )
