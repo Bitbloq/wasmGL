@@ -30,6 +30,7 @@ WASMGL_KEEP void addCylinder(float radiusBottom, float radiusTop, float height, 
 /** Ring in XY plane; major = hole-to-tube-center, minor = tube radius. */
 WASMGL_KEEP void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
 
+/** Dolly orbit distance (TS zoom in/out, ~0.95^dolly per step), not FOV. */
 WASMGL_KEEP void cameraZoomOut(void);
 WASMGL_KEEP void cameraZoomIn(void);
 WASMGL_KEEP void cameraNudgeViewYawDegrees(float deltaDeg);

@@ -18,7 +18,7 @@
 
 #include "window/window.h"
 #include "shaders/shader.h"
-#include "camera/camera.h"
+#include "camera/orbit_camera.h"
 #include "complexobjects/csgmesh.h"
 #include "threecsg/threebsp.h"
 #include "core/mesh.h"
@@ -46,7 +46,7 @@ static int g_boolOperandB{-1};
 
 Shader litShader;
 Shader lineShader;
-Camera camera;
+OrbitCamera orbitCamera(glm::vec3(0.0f, 0.0f, 2.4f), glm::vec3(0.0f));
 GLfloat deltaTime{0.0f};
 GLfloat lastTime{0.0f};
 int loops{0};
@@ -198,8 +198,6 @@ int main()
 
 	CreateShaders();
 
-	camera = Camera(glm::vec3(0.0f, 0.0f, 2.4f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
-
 	refreshProjection();
 
 #ifdef __EMSCRIPTEN__
@@ -235,16 +233,32 @@ void mainloop()
 #endif
 
 	glfwPollEvents();
-	camera.keyControl(mainWindow.getKeys(), deltaTime);
-	camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange());
+
+	GLfloat const canvasW = static_cast<GLfloat>(std::max(1, mainWindow.getBufferWidth()));
+	GLfloat const canvasH = static_cast<GLfloat>(std::max(1, mainWindow.getBufferHeight()));
+	GLfloat const xDelta = mainWindow.getXChange();
+	GLfloat const yDelta = mainWindow.getYChange();
+
+	bool const leftDown = mainWindow.isLeftButtonPressed();
+	bool const rightDown = mainWindow.isRightButtonPressed();
+	orbitCamera.setDragging(leftDown || rightDown);
+
+	orbitCamera.keyControl(mainWindow.getKeys(), deltaTime);
+	if (leftDown)
+		orbitCamera.applyRotatePixels(xDelta, yDelta, canvasW, canvasH);
+	else if (rightDown)
+		orbitCamera.applyPanPixels(xDelta, yDelta, canvasW, canvasH);
+	orbitCamera.applyWheel(mainWindow.getScrollY());
+	orbitCamera.setFovDegrees(g_fovDegrees);
+	orbitCamera.update(deltaTime);
 
 	refreshProjection();
 
 	glClearColor(0.72f, 0.74f, 0.78f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glm::mat4 view = camera.calculateViewMatrix();
-	glm::vec3 viewPos = camera.getPosition();
+	glm::mat4 view = orbitCamera.calculateViewMatrix();
+	glm::vec3 viewPos = orbitCamera.getPosition();
 
 	litShader.UseShader();
 
@@ -736,27 +750,27 @@ void performBooleanIntersection(void)
 
 void cameraZoomIn(void)
 {
-	g_fovDegrees = std::max(18.0f, g_fovDegrees - 3.0f);
+	orbitCamera.zoomInButton();
 }
 
 void cameraZoomOut(void)
 {
-	g_fovDegrees = std::min(85.0f, g_fovDegrees + 3.0f);
+	orbitCamera.zoomOutButton();
 }
 
 void cameraNudgeViewYawDegrees(float deltaDeg)
 {
-	camera.nudgeViewYawDegrees(deltaDeg);
+	orbitCamera.nudgeViewYawDegrees(deltaDeg);
 }
 
 void cameraNudgeViewPitchDegrees(float deltaDeg)
 {
-	camera.nudgeViewPitchDegrees(deltaDeg);
+	orbitCamera.nudgeViewPitchDegrees(deltaDeg);
 }
 
 void cameraNudgePositionView(float alongFront, float alongRight, float alongUp)
 {
-	camera.nudgePositionView(alongFront, alongRight, alongUp);
+	orbitCamera.nudgePositionView(alongFront, alongRight, alongUp);
 }
 
 }

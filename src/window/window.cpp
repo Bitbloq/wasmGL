@@ -7,7 +7,8 @@ Window::Window() : width{800},
 									 leftButtonPressed{false},
 									 rightButtonPressed{false},
 									 xChange{0.0f},
-									 yChange{0.0f}
+									 yChange{0.0f},
+									 scrollY{0.0f}
 {
 	pKeys = std::make_shared<std::array<bool, 1024>>();
 	pKeys->fill(false);
@@ -19,7 +20,8 @@ Window::Window(GLint windowWidth, GLint windowHeight) : width{windowWidth},
 																												leftButtonPressed{false},
 																												rightButtonPressed{false},
 																												xChange{0.0f},
-																												yChange{0.0f}
+																												yChange{0.0f},
+																												scrollY{0.0f}
 {
 	pKeys = std::make_shared<std::array<bool, 1024>>();
 	pKeys->fill(false);
@@ -137,10 +139,17 @@ void Window::handleKeys(GLFWwindow *window, int key, int code, int action, int m
 	}
 }
 
+void Window::handleScroll(GLFWwindow *window, double xOffset, double yOffset)
+{
+	(void)xOffset;
+	Window *theWindow = static_cast<Window *>(glfwGetWindowUserPointer(window));
+	theWindow->scrollY += static_cast<GLfloat>(yOffset);
+}
+
 void Window::handleMouseMovement(GLFWwindow *window, double xPos, double yPos)
 {
 	Window *theWindow = static_cast<Window *>(glfwGetWindowUserPointer(window));
-	if (!theWindow->leftButtonPressed)
+	if (!theWindow->leftButtonPressed && !theWindow->rightButtonPressed)
 		return;
 	if (theWindow->mouseFirstMoved)
 	{
@@ -164,6 +173,7 @@ void Window::createCallbacks()
 	glfwSetKeyCallback(mainWindow, handleKeys);
 	glfwSetCursorPosCallback(mainWindow, handleMouseMovement);
 	glfwSetMouseButtonCallback(mainWindow, handleMouseButton);
+	glfwSetScrollCallback(mainWindow, handleScroll);
 }
 
 GLfloat Window::getXChange()
@@ -177,5 +187,12 @@ GLfloat Window::getYChange()
 {
 	GLfloat aux = yChange;
 	yChange = 0;
+	return aux;
+}
+
+GLfloat Window::getScrollY()
+{
+	GLfloat aux = scrollY;
+	scrollY = 0.0f;
 	return aux;
 }

@@ -241,8 +241,8 @@
     <header class="shell-header">
       <h1>WasmGL</h1>
       <p class="lead">
-        <strong>Canvas click</strong> toggles: orbit the camera with the mouse vs. keep a fixed view.
-        Use the panel to add solids, move and resize the <em>selected</em> object, move the <em>camera</em>, and run CSG on <em>two</em> chosen objects.
+        <strong>Canvas:</strong> left-drag orbit, right-drag pan, wheel zoom (same model as the TS OrbitCamera).
+        Use the panel to add solids, move and resize the <em>selected</em> object, nudge the <em>camera</em>, and run CSG on <em>two</em> chosen objects.
       </p>
     </header>
 
@@ -499,7 +499,7 @@
 
       <div class="card">
         <h2>5 · Scene view <span class="badge">camera</span></h2>
-        <p class="section-desc">Move the <em>camera</em> (not the object): pan in view space, orbit, and zoom (field of view).</p>
+        <p class="section-desc">Orbit around the scene origin: panel buttons pan along view axes (dolly / strafe / up), orbit yaw/pitch, and zoom (dolly distance — same as wheel).</p>
         <label class="field-label">Pan / dolly — step <span id="panStepLabel">0.08</span> m</label>
         <div class="grid-3 compact">
           <button type="button" class="pan-btn" data-dir="forward" title="Move camera forward">Forward</button>
@@ -517,8 +517,8 @@
           <button type="button" class="view-orbit" data-kind="pitch" data-sign="-">Pitch −</button>
         </div>
         <div class="btn-row" style="margin-top: 10px">
-          <button type="button" id="zoomIn">Zoom in (narrow FOV)</button>
-          <button type="button" id="zoomOut">Zoom out (widen FOV)</button>
+          <button type="button" id="zoomIn">Zoom in (dolly)</button>
+          <button type="button" id="zoomOut">Zoom out (dolly)</button>
           <button type="button" id="fullscreen">Fullscreen canvas</button>
         </div>
       </div>
@@ -591,21 +591,13 @@
     addType.addEventListener("change", updateAddShapePanels);
     updateAddShapePanels();
 
-    canvas.addEventListener("click", function () {
-      window.allowMovement = !window.allowMovement;
-      updateStatus();
-    });
-    canvas.addEventListener("touchend", function (e) {
+    canvas.addEventListener("contextmenu", function (e) {
       e.preventDefault();
-      window.allowMovement = !window.allowMovement;
-      updateStatus();
     });
 
     function updateStatus() {
       statusLine.textContent =
-        window.allowMovement === false
-          ? "Mode: fixed view (click canvas to orbit again)"
-          : "Mode: orbit with mouse (click canvas to lock view)";
+        "Left-drag: orbit · Right-drag: pan · Wheel: zoom · WASD: dolly / strafe";
     }
     updateStatus();
 
