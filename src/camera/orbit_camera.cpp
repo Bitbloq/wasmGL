@@ -20,8 +20,9 @@ void OrbitCamera::Spherical::setFromOffset(glm::vec3 const &v)
 {
   float const len = glm::length(v);
   radius = std::max(len, 1e-6f);
-  theta = std::atan2(v.x, v.z);
-  phi = std::acos(std::clamp(v.y / radius, -1.0f, 1.0f));
+  /** Azimuth in XY around +Z; polar angle from +Z (grid normal). */
+  theta = std::atan2(v.y, v.x);
+  phi = std::acos(std::clamp(v.z / radius, -1.0f, 1.0f));
   makeSafe();
 }
 
@@ -35,9 +36,9 @@ glm::vec3 OrbitCamera::Spherical::cartesian() const
 {
   float const sp = std::sin(phi);
   return glm::vec3(
+      radius * sp * std::cos(theta),
       radius * sp * std::sin(theta),
-      radius * std::cos(phi),
-      radius * sp * std::cos(theta));
+      radius * std::cos(phi));
 }
 
 OrbitCamera::OrbitCamera(glm::vec3 const &worldPosition, glm::vec3 const &target)
@@ -52,7 +53,7 @@ OrbitCamera::OrbitCamera(glm::vec3 const &worldPosition, glm::vec3 const &target
 
 glm::mat4 OrbitCamera::calculateViewMatrix() const
 {
-  return glm::lookAt(position_, target_, glm::vec3(0.0f, 1.0f, 0.0f));
+  return glm::lookAt(position_, target_, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
 bool OrbitCamera::update(GLfloat deltaTime)
@@ -129,7 +130,7 @@ void OrbitCamera::dolly(float distance, bool enableTransition)
 void OrbitCamera::truck(float x, float y, bool enableTransition)
 {
   glm::vec3 const forward = glm::normalize(target_ - position_);
-  glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+  glm::vec3 worldUp(0.0f, 0.0f, 1.0f);
   glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
   if (glm::length(right) < 1e-6f)
     right = glm::vec3(1.0f, 0.0f, 0.0f);
