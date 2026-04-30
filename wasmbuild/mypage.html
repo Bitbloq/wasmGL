@@ -242,20 +242,21 @@
       <h1>WasmGL</h1>
       <p class="lead">
         <strong>Canvas:</strong> left-drag orbit, right-drag pan, wheel zoom (same model as the TS OrbitCamera).
-        Use the panel to add solids, move and resize the <em>selected</em> object, and run CSG on <em>two</em> chosen objects.
+        Use the panel to add <strong>solid</strong> primitives (box, sphere, pyramid, cylinder, cone, torus), move and resize the <em>selected</em> object, and run CSG on <em>two</em> chosen objects.
       </p>
     </header>
 
     <aside class="panel" aria-label="Controls">
       <div class="card">
         <h2>1 · Add object</h2>
-        <p class="section-desc">Choose type, set size, then add to the scene.</p>
+        <p class="section-desc">Closed solids only (no sheets or lines). Choose type, set size, then add.</p>
         <label class="field-label" for="addType">Shape</label>
         <select id="addType" aria-label="Object type to add">
           <option value="cube">Box (width, height, depth)</option>
           <option value="sphere">Sphere (radius, mesh detail)</option>
           <option value="pyramid">Pyramid (base edge, height)</option>
           <option value="cylinder">Cylinder / frustum (radii, height, segments)</option>
+          <option value="cone">Cone (base radius, height, segments)</option>
           <option value="torus">Torus (major / minor radius, segments)</option>
         </select>
         <div id="addCubeFields">
@@ -299,6 +300,27 @@
             <div>
               <label class="field-label" for="addPyrH">Height</label>
               <input type="number" id="addPyrH" min="0.01" step="0.05" value="1" />
+            </div>
+          </div>
+        </div>
+        <div id="addConeFields" class="hidden">
+          <p class="section-desc" style="margin-bottom: 8px">Solid cone; apex at the top (Three.js–style).</p>
+          <div class="grid-2">
+            <div>
+              <label class="field-label" for="addConeR">Base radius</label>
+              <input type="number" id="addConeR" min="0.01" step="0.05" value="0.4" />
+            </div>
+            <div>
+              <label class="field-label" for="addConeH">Height</label>
+              <input type="number" id="addConeH" min="0.01" step="0.05" value="1" />
+            </div>
+            <div>
+              <label class="field-label" for="addConeRs">Radial segments</label>
+              <input type="number" id="addConeRs" min="3" step="1" value="24" />
+            </div>
+            <div>
+              <label class="field-label" for="addConeHs">Height segments</label>
+              <input type="number" id="addConeHs" min="1" step="1" value="1" />
             </div>
           </div>
         </div>
@@ -367,7 +389,7 @@
 
       <div class="card">
         <h2>3 · Resize selection</h2>
-        <p class="section-desc">Dimensions match each primitive (box, sphere, pyramid, cylinder/frustum, torus). CSG results cannot be resized here.</p>
+        <p class="section-desc">Dimensions match each solid primitive (box, sphere, pyramid, cylinder/frustum, cone, torus). CSG results cannot be resized here.</p>
         <p id="resizeUnavailable" class="section-desc hidden">CSG results cannot be resized here — add a new primitive instead.</p>
         <div id="resizeBoxFields">
           <div class="grid-2">
@@ -548,6 +570,7 @@
       sphere: document.getElementById("addSphereFields"),
       pyramid: document.getElementById("addPyramidFields"),
       cylinder: document.getElementById("addCylinderFields"),
+      cone: document.getElementById("addConeFields"),
       torus: document.getElementById("addTorusFields"),
     };
     function updateAddShapePanels() {
@@ -559,6 +582,7 @@
       else if (v === "sphere") addFieldGroups.sphere.classList.remove("hidden");
       else if (v === "pyramid") addFieldGroups.pyramid.classList.remove("hidden");
       else if (v === "cylinder") addFieldGroups.cylinder.classList.remove("hidden");
+      else if (v === "cone") addFieldGroups.cone.classList.remove("hidden");
       else if (v === "torus") addFieldGroups.torus.classList.remove("hidden");
     }
     addType.addEventListener("change", updateAddShapePanels);
@@ -581,6 +605,7 @@
       if (k === 4) return "Pyramid";
       if (k === 5) return "Cylinder";
       if (k === 6) return "Torus";
+      if (k === 7) return "Cone";
       return "Object";
     }
 
@@ -671,13 +696,20 @@
         pyrBlock.classList.remove("hidden");
         document.getElementById("resPyrSide").value = String(Module._getSelectedPyramidSide());
         document.getElementById("resPyrH").value = String(Module._getSelectedPyramidHeight());
-      } else if (kind === 5) {
+      } else if (kind === 5 || kind === 7) {
         cylBlock.classList.remove("hidden");
         document.getElementById("resCylRb").value = String(Module._getSelectedCylinderRadiusBottom());
         document.getElementById("resCylRt").value = String(Module._getSelectedCylinderRadiusTop());
         document.getElementById("resCylH").value = String(Module._getSelectedCylinderHeight());
         document.getElementById("resCylRs").value = String(Module._getSelectedCylinderRadialSegments());
         document.getElementById("resCylHs").value = String(Module._getSelectedCylinderHeightSegments());
+        var rtEl = document.getElementById("resCylRt");
+        if (kind === 7) {
+          rtEl.value = "0";
+          rtEl.disabled = true;
+        } else {
+          rtEl.disabled = false;
+        }
       } else if (kind === 6) {
         torBlock.classList.remove("hidden");
         document.getElementById("resTorMaj").value = String(Module._getSelectedTorusMajorRadius());
@@ -821,8 +853,15 @@
             var ch = parseFloat(document.getElementById("addCylH").value);
             var crs = parseInt(document.getElementById("addCylRs").value, 10);
             var chs = parseInt(document.getElementById("addCylHs").value, 10);
-            if (!(rb > 0 && rt > 0 && ch > 0)) return;
+            if (!(rb > 0 && ch > 0 && rt >= 0)) return;
             Module._addCylinder(rb, rt, ch, crs, chs);
+          } else if (addType.value === "cone") {
+            var cr = parseFloat(document.getElementById("addConeR").value);
+            var coh = parseFloat(document.getElementById("addConeH").value);
+            var crs = parseInt(document.getElementById("addConeRs").value, 10);
+            var chs = parseInt(document.getElementById("addConeHs").value, 10);
+            if (!(cr > 0 && coh > 0)) return;
+            Module._addCone(cr, coh, crs, chs);
           } else if (addType.value === "torus") {
             var maj = parseFloat(document.getElementById("addTorMaj").value);
             var minr = parseFloat(document.getElementById("addTorMin").value);
@@ -861,7 +900,10 @@
           var h = parseFloat(document.getElementById("resCylH").value);
           var rs = parseInt(document.getElementById("resCylRs").value, 10);
           var hs = parseInt(document.getElementById("resCylHs").value, 10);
-          if (rb > 0 && rt > 0 && h > 0) Module._resizeSelectedCylinder(rb, rt, h, rs, hs);
+          var sel = Module._getSelectedObjectIndex();
+          var k = sel >= 0 ? Module._getObjectKind(sel) : 0;
+          if (k === 7) rt = 0;
+          if (rb > 0 && rt >= 0 && h > 0) Module._resizeSelectedCylinder(rb, rt, h, rs, hs);
           refreshObjectList();
         });
         document.getElementById("btnApplyTorusResize").addEventListener("click", function () {
