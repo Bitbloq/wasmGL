@@ -48,7 +48,16 @@ static int g_boolOperandB{-1};
 Shader litShader;
 Shader lineShader;
 BaseGridRenderer g_baseGrid;
-OrbitCamera orbitCamera(glm::vec3(0.0f, 0.0f, 2.4f), glm::vec3(0.0f));
+OrbitCamera orbitCamera(glm::vec3(13.5f, 13.5f, 15.5f), glm::vec3(0.0f));
+
+namespace
+{
+/** Three.js meshes use +Y as cylinder/box height; +90° X maps height onto +Z (grid / world up). */
+inline glm::vec3 alignThreeYUpToWorldZ()
+{
+	return glm::vec3(glm::radians(90.0f), 0.0f, 0.0f);
+}
+} // namespace
 GLfloat deltaTime{0.0f};
 GLfloat lastTime{0.0f};
 int loops{0};
@@ -187,7 +196,8 @@ void CreateShaders()
 {
 	litShader.CreateFromString(vLit, fLit);
 	lineShader.CreateFromString(vLine, fLine);
-	g_lightDirWorld = glm::normalize(glm::vec3(0.42f, 0.85f, 0.35f));
+	/** Mostly downward / −Z-ish lighting so Z-up solids read clearly. */
+	g_lightDirWorld = glm::normalize(glm::vec3(0.28f, 0.22f, 0.92f));
 }
 
 void emcmainloop(void *mainLoopArg);
@@ -310,7 +320,7 @@ void addCube(float width, float height, float depth)
 	GLfloat const d = std::max(1e-4f, depth);
 	auto cube = createBox(BoxDimensions{w, h, d});
 	cube->setSolidColor(glm::vec3(0.92f, 0.48f, 0.18f));
-	cube->rotate(glm::vec3(0.0f, glm::radians(45.0f), 0.0f));
+	cube->rotate(alignThreeYUpToWorldZ());
 	cube->computeThreeBSP();
 	meshList.push_back(cube);
 	meshObjectKinds.push_back(1);
@@ -349,6 +359,8 @@ void addCylinder(float radiusBottom, float radiusTop, float height, int radialSe
 			CylinderDimensions{std::max(1e-4f, radiusBottom), std::max(1e-4f, radiusTop), std::max(1e-4f, height)},
 			CylinderParameters{rseg, hseg});
 	cyl->setSolidColor(glm::vec3(0.24f, 0.78f, 0.45f));
+	cyl->rotate(alignThreeYUpToWorldZ());
+	cyl->computeThreeBSP();
 	meshList.push_back(cyl);
 	meshObjectKinds.push_back(5);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
@@ -362,6 +374,8 @@ void addCone(float radius, float height, int radialSeg, int heightSeg)
 			CylinderDimensions{std::max(1e-4f, radius), 0.0f, std::max(1e-4f, height)},
 			CylinderParameters{rseg, hseg});
 	cone->setSolidColor(glm::vec3(0.95f, 0.42f, 0.28f));
+	cone->rotate(alignThreeYUpToWorldZ());
+	cone->computeThreeBSP();
 	meshList.push_back(cone);
 	meshObjectKinds.push_back(7);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
