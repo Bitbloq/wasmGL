@@ -6,7 +6,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/** Three.js `TorusGeometry` (r162): radius, tube, radialSegments, tubularSegments, arc=2π */
+/** Three.js `TorusGeometry` (r162): radius, tube, radialSegments, tubularSegments, arc=2*pi */
 
 Torus::Torus(TorusDimensions const &dimensions, TorusParameters const &parameters)
 		: Mesh{}, dimensions{dimensions}, parameters{parameters}
@@ -29,7 +29,6 @@ void Torus::rebuildGeometry()
 	computeFaces();
 	createMesh();
 	threeBSPDone = false;
-	computeThreeBSP();
 }
 
 void Torus::createVertices()

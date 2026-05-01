@@ -28,13 +28,12 @@ void Cylinder::rebuildGeometry()
 	computeFaces();
 	createMesh();
 	threeBSPDone = false;
-	computeThreeBSP();
 }
 
 void Cylinder::createVertices()
 {
 	/** Three.js `CylinderGeometry` (r162): `radiusTop`, `radiusBottom`, height, radialSegments, heightSegments,
-	 *  openEnded=false, thetaStart=0, thetaLength=2π */
+	 *  openEnded=false, thetaStart=0, thetaLength=2*pi */
 	int const radialSegments = std::max(3, parameters.radialSegments);
 	int const heightSegments = std::max(1, parameters.heightSegments);
 	float const radiusTop = std::max(1e-4f, dimensions.radiusTop);
@@ -158,4 +157,10 @@ void Cylinder::createVertices()
 		generateCap(true);
 	if (radiusBottom > 0.0f)
 		generateCap(false);
+
+	/** Bake the old Y-up -> Z-up alignment into geometry so object-local Z is up at identity model. */
+	for (auto &p : vertices)
+		p = glm::vec3(p.x, -p.z, p.y);
+	for (auto &n : normals)
+		n = glm::normalize(glm::vec3(n.x, -n.z, n.y));
 }

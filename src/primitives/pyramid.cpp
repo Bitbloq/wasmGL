@@ -31,7 +31,6 @@ void Pyramid::rebuildGeometry()
 	computeFaces();
 	createMesh();
 	threeBSPDone = false;
-	computeThreeBSP();
 }
 
 void Pyramid::createVertices()

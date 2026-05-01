@@ -1,5 +1,5 @@
 /**
- * JavaScript / WebAssembly boundary — stable C ABI for the demo embed.
+ * JavaScript / WebAssembly boundary - stable C ABI for the demo embed.
  *
  * Keep this list in sync with CMake Emscripten flags:
  *   -sEXPORTED_FUNCTIONS=[_main,_addCube,...]
@@ -25,12 +25,14 @@ WASMGL_KEEP void addCube(float width, float height, float depth);
 WASMGL_KEEP void addSphere(float radius, int widthSeg, int heightSeg);
 /** Equilateral triangular base; `side` = base edge length. */
 WASMGL_KEEP void addPyramid(float side, float height);
-/** Y-axis cylinder / truncated cylinder; equal radii = right cylinder. */
+/** Z-axis cylinder / truncated cylinder; equal radii = right cylinder. */
 WASMGL_KEEP void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg);
 /** Solid cone (apex up): same mesh as cylinder with top radius 0 (Three.js ConeGeometry-style). */
 WASMGL_KEEP void addCone(float radius, float height, int radialSeg, int heightSeg);
 /** Ring in XY plane; major = hole-to-tube-center, minor = tube radius. */
 WASMGL_KEEP void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
+/** Add a primitive with demo-friendly default dimensions; kind = getObjectKind values. Returns new object index or -1. */
+WASMGL_KEEP int addDefaultObject(int kind);
 
 /** Dolly orbit distance (TS zoom in/out, ~0.95^dolly per step), not FOV. */
 WASMGL_KEEP void cameraZoomOut(void);
@@ -43,41 +45,29 @@ WASMGL_KEEP int getSceneObjectCount(void);
 WASMGL_KEEP void setSelectedObjectIndex(int idx);
 WASMGL_KEEP int getSelectedObjectIndex(void);
 WASMGL_KEEP int getObjectKind(int index);
+WASMGL_KEEP int getObjectSerialId(int index);
 
-WASMGL_KEEP float getSelectedBoxWidth(void);
-WASMGL_KEEP float getSelectedBoxHeight(void);
-WASMGL_KEEP float getSelectedBoxDepth(void);
-WASMGL_KEEP float getSelectedSphereRadius(void);
-WASMGL_KEEP int getSelectedSphereWidthSegments(void);
-WASMGL_KEEP int getSelectedSphereHeightSegments(void);
-WASMGL_KEEP float getSelectedPyramidSide(void);
-WASMGL_KEEP float getSelectedPyramidHeight(void);
-WASMGL_KEEP float getSelectedCylinderRadiusBottom(void);
-WASMGL_KEEP float getSelectedCylinderRadiusTop(void);
-WASMGL_KEEP float getSelectedCylinderHeight(void);
-WASMGL_KEEP int getSelectedCylinderRadialSegments(void);
-WASMGL_KEEP int getSelectedCylinderHeightSegments(void);
-WASMGL_KEEP float getSelectedTorusMajorRadius(void);
-WASMGL_KEEP float getSelectedTorusMinorRadius(void);
-WASMGL_KEEP int getSelectedTorusRadialSegments(void);
-WASMGL_KEEP int getSelectedTorusTubularSegments(void);
+/** Kind-specific parameter slots are documented in docs/WEB_DEVELOPERS.md. */
+WASMGL_KEEP float getObjectFloatParameter(int objectIndex, int parameterIndex);
+WASMGL_KEEP int getObjectIntParameter(int objectIndex, int parameterIndex);
+WASMGL_KEEP int setObjectParameters(int objectIndex, float p0, float p1, float p2, int i0, int i1);
 
-WASMGL_KEEP void resizeSelectedBox(float width, float height, float depth);
-WASMGL_KEEP void resizeSelectedSphere(float radius, int widthSeg, int heightSeg);
-WASMGL_KEEP void resizeSelectedPyramid(float side, float height);
-WASMGL_KEEP void resizeSelectedCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg);
-WASMGL_KEEP void resizeSelectedTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
+/** Transform operation type: 1 translation, 2 rotation (Euler degrees). */
+WASMGL_KEEP int getObjectTransformOperationCount(int objectIndex);
+WASMGL_KEEP int getObjectTransformOperationType(int objectIndex, int opIndex);
+/** Reference frame: 1 scene/world, 2 object/local. */
+WASMGL_KEEP int getObjectTransformOperationFrame(int objectIndex, int opIndex);
+WASMGL_KEEP float getObjectTransformOperationValue(int objectIndex, int opIndex, int axis);
+WASMGL_KEEP int addObjectTransformOperation(int objectIndex, int type, int frame);
+WASMGL_KEEP void setObjectTransformOperationFull(int objectIndex, int opIndex, int type, int frame, float x, float y, float z);
+WASMGL_KEEP void removeObjectTransformOperation(int objectIndex, int opIndex);
 
-WASMGL_KEEP void nudgeSelectedTranslate(float dx, float dy, float dz);
-WASMGL_KEEP void nudgeSelectedRotateDegrees(float rxDeg, float ryDeg, float rzDeg);
-
-WASMGL_KEEP void setBooleanOperandA(int idx);
-WASMGL_KEEP void setBooleanOperandB(int idx);
-WASMGL_KEEP int getBooleanOperandA(void);
-WASMGL_KEEP int getBooleanOperandB(void);
-WASMGL_KEEP void performBooleanUnion(void);
-WASMGL_KEEP void performBooleanDifference(void);
-WASMGL_KEEP void performBooleanIntersection(void);
+WASMGL_KEEP void clearBooleanSelection(void);
+WASMGL_KEEP int addBooleanSelectionObject(int objectIndex);
+WASMGL_KEEP int getBooleanSelectionCount(void);
+WASMGL_KEEP int getBooleanSelectionObject(int selectionIndex);
+/** Operation: 1 union, 2 difference (first minus rest), 3 intersection. Returns result index or -1. */
+WASMGL_KEEP int performBooleanOperation(int operation);
 
 /** 1 = show Bitbloq-style base grid (XY plane), 0 = hide. */
 WASMGL_KEEP void setBaseGridVisible(int visible);
