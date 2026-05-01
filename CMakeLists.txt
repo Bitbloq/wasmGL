@@ -37,6 +37,45 @@ target_include_directories(wasmgl PRIVATE
 )
 
 if(EMSCRIPTEN)
+  set(WASMGL_EXPORTED_FUNCTIONS
+    _main
+    _addCube
+    _addSphere
+    _addPyramid
+    _addCylinder
+    _addCone
+    _addTorus
+    _addDefaultObject
+    _cameraZoomIn
+    _cameraZoomOut
+    _cameraNudgeViewYawDegrees
+    _cameraNudgeViewPitchDegrees
+    _cameraNudgePositionView
+    _getSceneObjectCount
+    _setSelectedObjectIndex
+    _getSelectedObjectIndex
+    _getObjectKind
+    _getObjectSerialId
+    _getObjectFloatParameter
+    _getObjectIntParameter
+    _setObjectParameters
+    _getObjectTransformOperationCount
+    _getObjectTransformOperationType
+    _getObjectTransformOperationFrame
+    _getObjectTransformOperationValue
+    _addObjectTransformOperation
+    _setObjectTransformOperationFull
+    _removeObjectTransformOperation
+    _clearBooleanSelection
+    _addBooleanSelectionObject
+    _getBooleanSelectionCount
+    _getBooleanSelectionObject
+    _performBooleanOperation
+    _setBaseGridVisible
+    _setAxisHelperVisible
+  )
+  list(JOIN WASMGL_EXPORTED_FUNCTIONS "," WASMGL_EXPORTED_FUNCTIONS_JOINED)
+
   set_target_properties(wasmgl PROPERTIES
     OUTPUT_NAME "wasmGL"
     SUFFIX ".js"
@@ -50,7 +89,7 @@ if(EMSCRIPTEN)
     "SHELL:-sMIN_WEBGL_VERSION=2"
     "SHELL:-sSTACK_SIZE=33554432"
     "SHELL:-sALLOW_MEMORY_GROWTH=1"
-    "SHELL:-sEXPORTED_FUNCTIONS=[_main,_addCube,_addSphere,_addPyramid,_addCylinder,_addCone,_addTorus,_cameraZoomIn,_cameraZoomOut,_cameraNudgeViewYawDegrees,_cameraNudgeViewPitchDegrees,_cameraNudgePositionView,_getSceneObjectCount,_setSelectedObjectIndex,_getSelectedObjectIndex,_getObjectKind,_getSelectedBoxWidth,_getSelectedBoxHeight,_getSelectedBoxDepth,_getSelectedSphereRadius,_getSelectedSphereWidthSegments,_getSelectedSphereHeightSegments,_getSelectedPyramidSide,_getSelectedPyramidHeight,_getSelectedCylinderRadiusBottom,_getSelectedCylinderRadiusTop,_getSelectedCylinderHeight,_getSelectedCylinderRadialSegments,_getSelectedCylinderHeightSegments,_getSelectedTorusMajorRadius,_getSelectedTorusMinorRadius,_getSelectedTorusRadialSegments,_getSelectedTorusTubularSegments,_resizeSelectedBox,_resizeSelectedSphere,_resizeSelectedPyramid,_resizeSelectedCylinder,_resizeSelectedTorus,_nudgeSelectedTranslate,_nudgeSelectedRotateDegrees,_setBooleanOperandA,_setBooleanOperandB,_getBooleanOperandA,_getBooleanOperandB,_performBooleanUnion,_performBooleanDifference,_performBooleanIntersection,_setBaseGridVisible,_setAxisHelperVisible]"
+    "SHELL:-sEXPORTED_FUNCTIONS=[${WASMGL_EXPORTED_FUNCTIONS_JOINED}]"
   )
 else()
   find_package(OpenGL REQUIRED)

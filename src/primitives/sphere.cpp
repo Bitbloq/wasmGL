@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-/** Three.js `SphereGeometry` (r162) — same vertex, normal, and index order. */
+/** Three.js `SphereGeometry` (r162) - same vertex, normal, and index order. */
 
 Sphere::Sphere(SphereDimensions const &dimensions, SphereParameters const &parameters) : Mesh{}, dimensions{dimensions}, parameters{parameters}
 {
@@ -27,7 +27,6 @@ void Sphere::rebuildGeometry()
 	computeFaces();
 	createMesh();
 	threeBSPDone = false;
-	computeThreeBSP();
 }
 
 void Sphere::createVertices()
