@@ -59,6 +59,8 @@ if(EMSCRIPTEN)
     _getObjectSerialId
     _getSceneObjectId
     _removeSceneObject
+    _getObjectSolidColorChannel
+    _setObjectSolidColor
     _getObjectFloatParameter
     _getObjectIntParameter
     _setObjectParameters

@@ -433,6 +433,62 @@
 
     .hidden { display: none !important; }
 
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 380px;
+      padding: 22px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .modal-dialog h2 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .modal-dialog input[type="color"] {
+      width: 100%;
+      height: 56px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      background: var(--field);
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .color-swatch {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      flex-shrink: 0;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    }
+
     @media (max-width: 1120px) {
       body { overflow: auto; }
       .app { grid-template-columns: 1fr; height: auto; }
@@ -523,6 +579,18 @@
     </aside>
   </div>
 
+  <div id="colorModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="colorModalTitle">
+    <div class="modal-dialog">
+      <h2 id="colorModalTitle">Object color</h2>
+      <p class="hint" style="margin-bottom: 14px;">Pick an albedo color (shown in sRGB in the picker; wasm stores linear RGB components).</p>
+      <input type="color" id="colorModalInput" aria-label="Color value" />
+      <div class="button-row" style="margin-top: 16px;">
+        <button type="button" id="colorModalApply" class="primary">Apply</button>
+        <button type="button" id="colorModalCancel" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     var canvas = document.getElementById("canvas");
     var shapeType = document.getElementById("shapeType");
@@ -534,6 +602,76 @@
     var csgCard = document.getElementById("csgCard");
     var csgSummary = document.getElementById("csgSummary");
     var btnRemoveObject = document.getElementById("btnRemoveObject");
+    var colorModal = document.getElementById("colorModal");
+    var colorModalInput = document.getElementById("colorModalInput");
+    var colorModalApply = document.getElementById("colorModalApply");
+    var colorModalCancel = document.getElementById("colorModalCancel");
+    var pendingColorSerial = 0;
+
+    function linearRgbToHex(r, g, b) {
+      function byte(ch) {
+        return Math.max(0, Math.min(255, Math.round(Math.max(0, Math.min(1, ch)) * 255)));
+      }
+      return "#" + byte(r).toString(16).padStart(2, "0") + byte(g).toString(16).padStart(2, "0") + byte(b).toString(16).padStart(2, "0");
+    }
+
+    function hexToLinearRgb(hex) {
+      var h = String(hex || "").replace(/^#/, "");
+      if (h.length !== 6) return [0, 0, 0];
+      return [
+        parseInt(h.slice(0, 2), 16) / 255,
+        parseInt(h.slice(2, 4), 16) / 255,
+        parseInt(h.slice(4, 6), 16) / 255
+      ];
+    }
+
+    function closeColorModal() {
+      colorModal.classList.add("hidden");
+      document.removeEventListener("keydown", onColorModalEscape);
+      pendingColorSerial = 0;
+    }
+
+    function onColorModalEscape(ev) {
+      if (ev.key === "Escape") closeColorModal();
+    }
+
+    function openColorModal(serial) {
+      if (!runtimeReady || serial <= 0 || typeof Module._getObjectSolidColorChannel !== "function") return;
+      pendingColorSerial = serial;
+      var r = Module._getObjectSolidColorChannel(serial, 0);
+      var g = Module._getObjectSolidColorChannel(serial, 1);
+      var b = Module._getObjectSolidColorChannel(serial, 2);
+      colorModalInput.value = linearRgbToHex(r, g, b);
+      colorModal.classList.remove("hidden");
+      document.addEventListener("keydown", onColorModalEscape);
+      colorModalInput.focus();
+    }
+
+    function applyColorModal() {
+      if (!runtimeReady || pendingColorSerial <= 0) {
+        closeColorModal();
+        return;
+      }
+      var rgb = hexToLinearRgb(colorModalInput.value);
+      Module._setObjectSolidColor(pendingColorSerial, rgb[0], rgb[1], rgb[2]);
+      closeColorModal();
+      renderAll();
+    }
+
+    function bindMaterialColor(serial) {
+      var swatch = document.getElementById("objectColorSwatch");
+      var btn = document.getElementById("btnOpenColorModal");
+      if (!swatch || !btn) return;
+      function refreshSwatch() {
+        var r = Module._getObjectSolidColorChannel(serial, 0);
+        var g = Module._getObjectSolidColorChannel(serial, 1);
+        var bl = Module._getObjectSolidColorChannel(serial, 2);
+        swatch.style.backgroundColor = "rgb(" +
+          Math.round(r * 255) + "," + Math.round(g * 255) + "," + Math.round(bl * 255) + ")";
+      }
+      refreshSwatch();
+      btn.onclick = function () { openColorModal(serial); };
+    }
     var runtimeReady = false;
     var selectedSerials = [];
 
@@ -942,9 +1080,11 @@
       Module._setSelectedObjectId(selectedSerials[0]);
       var html = "<section class=\"card\"><p class=\"eyebrow\">object id " + selectedSerials[0] + "</p><h1 style=\"font-size: 2.5rem; margin-bottom: 10px;\">" + objectName(index) + "</h1><p class=\"hint\">" + kindLabel(kind) + " - data comes from the wasm engine.</p></section>" +
         "<section class=\"card\"><h2>Dimensions</h2>" + renderDimensionEditor(index, kind) + "</section>" +
+        "<section class=\"card\"><h2>Material color</h2><p class=\"hint\">Albedo for shaded rendering (linear RGB in the engine).</p><div class=\"color-row\"><span class=\"color-swatch\" id=\"objectColorSwatch\" aria-hidden=\"true\"></span><button type=\"button\" class=\"secondary\" id=\"btnOpenColorModal\">Choose color…</button></div></section>" +
         "<section class=\"card\"><h2>Geometric Operations</h2><p class=\"hint\">Wasm owns the ordered list and cached transform matrices. Scene-frame operations pre-multiply the object matrix; object-frame operations post-multiply it and follow the object's self axes.</p><div class=\"divider\"></div>" + renderOperationEditor(index) + "</section>";
       rightPanelContent.innerHTML = html;
       bindDimensionEditor(index, kind);
+      bindMaterialColor(selectedSerials[0]);
       bindOperationEditor(index);
     }
 
@@ -1018,6 +1158,11 @@
 
     document.getElementById("btnAddShape").addEventListener("click", addSelectedShape);
     btnRemoveObject.addEventListener("click", removeSelectedFromScene);
+    colorModal.addEventListener("click", function (ev) {
+      if (ev.target === colorModal) closeColorModal();
+    });
+    colorModalApply.addEventListener("click", applyColorModal);
+    colorModalCancel.addEventListener("click", closeColorModal);
     document.getElementById("btnUnion").addEventListener("click", function () { runCsg("union"); });
     document.getElementById("btnDifference").addEventListener("click", function () { runCsg("difference"); });
     document.getElementById("btnIntersection").addEventListener("click", function () { runCsg("intersection"); });
