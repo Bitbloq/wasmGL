@@ -54,6 +54,10 @@ WASMGL_KEEP unsigned int getSceneObjectId(int index);
 /** Remove object by serial id; returns 1 if removed. */
 WASMGL_KEEP int removeSceneObject(unsigned int serialId);
 
+/** Linear RGB albedo, channels 0=R, 1=G, 2=B in [0,1]. */
+WASMGL_KEEP float getObjectSolidColorChannel(unsigned int serialId, int channel);
+WASMGL_KEEP void setObjectSolidColor(unsigned int serialId, float r, float g, float b);
+
 /** Kind-specific parameter slots are documented in docs/WEB_DEVELOPERS.md. */
 WASMGL_KEEP float getObjectFloatParameter(int objectIndex, int parameterIndex);
 WASMGL_KEEP int getObjectIntParameter(int objectIndex, int parameterIndex);

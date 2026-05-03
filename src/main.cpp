@@ -791,6 +791,30 @@ int removeSceneObject(unsigned int serialId)
 	return 1;
 }
 
+float getObjectSolidColorChannel(unsigned int serialId, int channel)
+{
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	if (idx < 0 || channel < 0 || channel > 2)
+		return 0.0f;
+	glm::vec3 const rgb = meshList[static_cast<size_t>(idx)]->getSolidColor();
+	return rgb[static_cast<size_t>(channel)];
+}
+
+void setObjectSolidColor(unsigned int serialId, float r, float g, float b)
+{
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	if (idx < 0)
+		return;
+	auto const clamp01 = [](float x) {
+		if (x < 0.0f)
+			return 0.0f;
+		if (x > 1.0f)
+			return 1.0f;
+		return x;
+	};
+	meshList[static_cast<size_t>(idx)]->setSolidColor(glm::vec3(clamp01(r), clamp01(g), clamp01(b)));
+}
+
 float getObjectFloatParameter(int objectIndex, int parameterIndex)
 {
 	if (!validObjectStateIndex(objectIndex))

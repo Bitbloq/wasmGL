@@ -114,6 +114,13 @@ Each `add*` call returns the new object's **serial id** (unsigned). Prefer refer
 | `_getSceneObjectId(index)` | unsigned | Serial id at list index; `0` if out of range |
 | `_removeSceneObject(serialId)` | `int` | `1` if removed |
 
+### Object material (albedo)
+
+| JS call | Notes |
+|---------|--------|
+| `_getObjectSolidColorChannel(serialId, channel)` | `channel` `0`–`2` = R, G, B; linear RGB in `[0, 1]` |
+| `_setObjectSolidColor(serialId, r, g, b)` | Clamps each component to `[0, 1]` |
+
 ### Object parameters
 
 Use generic parameter slots instead of kind-specific selected-object getters/setters.
