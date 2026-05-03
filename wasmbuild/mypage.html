@@ -777,6 +777,7 @@
 
     function sanitizeSelection() {
       if (!runtimeReady) return;
+      if (typeof Module._setSelectedObjectId !== "function") return;
       var kept = [];
       for (var i = 0; i < selectedSerials.length; i++) {
         if (indexBySerial(selectedSerials[i]) >= 0 && kept.indexOf(selectedSerials[i]) < 0) {
@@ -1175,7 +1176,15 @@
 
     var Module = {
       canvas: canvas,
+      printErr: function (text) {
+        console.error(text);
+      },
       onRuntimeInitialized: function () {
+        if (typeof Module._setSelectedObjectId !== "function" || typeof Module._getSceneObjectCount !== "function") {
+          setStatus("Wasm build is out of date — rebuild wasmGL (see README / compileWasm.sh) so exports match this page.");
+          console.error("wasmGL export mismatch: refresh wasmbuild/wasmGL.js and wasmGL.wasm after a full Emscripten build.");
+          return;
+        }
         runtimeReady = true;
         var showGrid = document.getElementById("showGrid");
         var showAxes = document.getElementById("showAxes");
