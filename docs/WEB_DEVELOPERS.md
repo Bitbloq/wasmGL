@@ -80,27 +80,29 @@ All arguments are passed as **numbers** for `float`/`int`; there are no string e
 
 ## Public API reference
 
-Below, **“selected”** means the index set by `setSelectedObjectIndex`. Several getters return `0` or meaningless values if the selection is not of the matching primitive kind.
+Below, **“selected”** means the object id set by `setSelectedObjectId`. Each `add*` returns a **unique unsigned id** for that object; ids are **not reused** after deletion. Several getters return `0` or meaningless values if the selection is not of the matching primitive kind.
 
 ### Scene: add primitives
 
-| JS call | Parameters | Notes |
-|---------|------------|--------|
-| `_addCube(w, h, d)` | width, height, depth (> 0) | Box; orange tint; becomes selected |
-| `_addSphere(radius, widthSeg, heightSeg)` | radius; segment counts (≥ min in impl) | Blue tint |
-| `_addPyramid(side, height)` | base edge; height | |
-| `_addCylinder(rBottom, rTop, height, radialSeg, heightSeg)` | radii ≥ 0; height > 0 | Frustum; cone uses `_addCone` |
-| `_addCone(radius, height, radialSeg, heightSeg)` | top radius 0 internally | |
-| `_addTorus(majorR, minorR, radialSeg, tubularSeg)` | standard torus | |
+| JS call | Returns | Notes |
+|---------|---------|--------|
+| `_addCube(w, h, d)` | unsigned id | Box; orange tint; becomes selected |
+| `_addSphere(radius, widthSeg, heightSeg)` | unsigned id | Blue tint |
+| `_addPyramid(side, height)` | unsigned id | base edge; height |
+| `_addCylinder(rBottom, rTop, height, radialSeg, heightSeg)` | unsigned id | radii ≥ 0; height > 0; frustum; cone uses `_addCone` |
+| `_addCone(radius, height, radialSeg, heightSeg)` | unsigned id | top radius 0 internally |
+| `_addTorus(majorR, minorR, radialSeg, tubularSeg)` | unsigned id | standard torus |
 
 ### Scene: selection and queries
 
 | JS call | Returns | Notes |
 |---------|---------|--------|
 | `_getSceneObjectCount()` | `int` | Number of meshes |
-| `_setSelectedObjectIndex(idx)` | — | `idx` in `[0, n-1]` or `-1` for none |
-| `_getSelectedObjectIndex()` | `int` | `-1` if none |
-| `_getObjectKind(index)` | `int` | `0` unknown, `1` cube, `2` sphere, `3` CSG, `4` pyramid, `5` cylinder, `6` torus, `7` cone |
+| `_getSceneObjectId(index)` | unsigned | Stable id at list index `index`, or `0` if out of range |
+| `_setSelectedObjectId(objectId)` | — | `0` clears selection |
+| `_getSelectedObjectId()` | unsigned | `0` if none |
+| `_getObjectKindById(objectId)` | `int` | `0` unknown, `1` cube, `2` sphere, `3` CSG, `4` pyramid, `5` cylinder, `6` torus, `7` cone |
+| `_removeSceneObject(objectId)` | `int` | `1` if removed, `0` if unknown id |
 
 ### Selected object — read dimensions (per kind)
 
@@ -144,13 +146,13 @@ These mirror UI/button behavior in the default app; they affect the global orbit
 
 ### CSG (two operands)
 
-Pick two distinct scene indices, then run one operation; implementation removes the operands and inserts the result.
+Pick two distinct objects by **id**, then run one operation; implementation removes the operands and inserts the result (new object, new id).
 
 | JS call | Notes |
 |---------|--------|
-| `_setBooleanOperandA(idx)` | `-1` clears |
-| `_setBooleanOperandB(idx)` | |
-| `_getBooleanOperandA()` … `_getBooleanOperandB()` | |
+| `_setBooleanOperandA(objectId)` | `0` clears |
+| `_setBooleanOperandB(objectId)` | |
+| `_getBooleanOperandA()` … `_getBooleanOperandB()` | unsigned id; `0` if none |
 | `_performBooleanUnion()` | |
 | `_performBooleanDifference()` | |
 | `_performBooleanIntersection()` | |

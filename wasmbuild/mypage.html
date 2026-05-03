@@ -383,6 +383,7 @@
           <option value="">— Empty scene —</option>
         </select>
         <div class="btn-row">
+          <button type="button" id="btnDeleteObject" class="ghost" disabled>Remove from scene</button>
           <button type="button" id="btnDeselect" class="ghost" disabled>Clear selection</button>
         </div>
       </div>
@@ -521,7 +522,7 @@
 
       <div class="card" id="csgCard">
         <h2>5 · Boolean CSG <span class="badge">two objects</span></h2>
-        <p class="section-desc">Pick operand <strong>A</strong> and <strong>B</strong> (different indices). Union and intersection are symmetric; <strong>difference</strong> is A − B.</p>
+        <p class="section-desc">Pick operand <strong>A</strong> and <strong>B</strong> (two different objects). Union and intersection are symmetric; <strong>difference</strong> is A − B.</p>
         <label class="field-label" for="operandA">Operand A</label>
         <select id="operandA" aria-label="CSG operand A">
           <option value="">— None —</option>
@@ -567,6 +568,7 @@
     var btnDiff = document.getElementById("btnDiff");
     var btnIsect = document.getElementById("btnIsect");
     var btnDeselect = document.getElementById("btnDeselect");
+    var btnDeleteObject = document.getElementById("btnDeleteObject");
     var statusLine = document.getElementById("statusLine");
 
     document.getElementById("moveStepLabel").textContent = String(MOVE_STEP);
@@ -617,7 +619,7 @@
       return "Object";
     }
 
-    function fillOperandSelect(el, n, currentIdx) {
+    function fillOperandSelect(el, n, currentId) {
       el.innerHTML = "";
       var def = document.createElement("option");
       def.value = "";
@@ -625,32 +627,41 @@
       el.appendChild(def);
       var kcounts = {};
       for (var i = 0; i < n; i++) {
-        var k = Module._getObjectKind(i);
+        var oid = Module._getSceneObjectId(i);
+        var k = Module._getObjectKindById(oid);
         kcounts[k] = (kcounts[k] || 0) + 1;
         var opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = kindLabel(k) + " #" + kcounts[k] + " (index " + i + ")";
+        opt.value = String(oid);
+        opt.textContent = kindLabel(k) + " #" + kcounts[k] + " (id " + oid + ")";
         el.appendChild(opt);
       }
-      if (currentIdx >= 0 && currentIdx < n) el.value = String(currentIdx);
+      if (currentId > 0) el.value = String(currentId);
       else el.value = "";
+    }
+
+    function sceneHasObjectId(id) {
+      var n = Module._getSceneObjectCount();
+      for (var i = 0; i < n; i++) {
+        if (Module._getSceneObjectId(i) === id) return true;
+      }
+      return false;
     }
 
     function refreshOperandSelects() {
       var n = Module._getSceneObjectCount();
       if (n === 0) {
-        Module._setBooleanOperandA(-1);
-        Module._setBooleanOperandB(-1);
+        Module._setBooleanOperandA(0);
+        Module._setBooleanOperandB(0);
       }
       var a = Module._getBooleanOperandA();
       var b = Module._getBooleanOperandB();
-      if (a >= n || a < 0) {
-        a = -1;
-        Module._setBooleanOperandA(-1);
+      if (!sceneHasObjectId(a)) {
+        a = 0;
+        Module._setBooleanOperandA(0);
       }
-      if (b >= n || b < 0) {
-        b = -1;
-        Module._setBooleanOperandB(-1);
+      if (!sceneHasObjectId(b)) {
+        b = 0;
+        Module._setBooleanOperandB(0);
       }
       fillOperandSelect(operandA, n, a);
       fillOperandSelect(operandB, n, b);
@@ -661,15 +672,15 @@
       var n = Module._getSceneObjectCount();
       var a = Module._getBooleanOperandA();
       var b = Module._getBooleanOperandB();
-      var ok = n >= 2 && a >= 0 && b >= 0 && a !== b;
+      var ok = n >= 2 && a > 0 && b > 0 && a !== b;
       btnUnion.disabled = !ok;
       btnDiff.disabled = !ok;
       btnIsect.disabled = !ok;
     }
 
     function syncResizePanel() {
-      var sel = Module._getSelectedObjectIndex();
-      var kind = sel >= 0 ? Module._getObjectKind(sel) : 0;
+      var sel = Module._getSelectedObjectId();
+      var kind = sel > 0 ? Module._getObjectKindById(sel) : 0;
       var boxBlock = document.getElementById("resizeBoxFields");
       var sphBlock = document.getElementById("resizeSphereFields");
       var pyrBlock = document.getElementById("resizePyramidFields");
@@ -679,7 +690,7 @@
       [boxBlock, sphBlock, pyrBlock, cylBlock, torBlock].forEach(function (el) {
         el.classList.add("hidden");
       });
-      if (sel < 0 || kind === 0) {
+      if (sel <= 0 || kind === 0) {
         unavail.classList.remove("hidden");
         unavail.textContent = "Select a primitive to edit its dimensions.";
         return;
@@ -729,7 +740,7 @@
 
     function refreshObjectList() {
       var n = Module._getSceneObjectCount();
-      var sel = Module._getSelectedObjectIndex();
+      var sel = Module._getSelectedObjectId();
       objectSelect.innerHTML = "";
       if (n <= 0) {
         var opt0 = document.createElement("option");
@@ -737,6 +748,7 @@
         opt0.textContent = "— Empty scene —";
         objectSelect.appendChild(opt0);
         btnDeselect.disabled = true;
+        btnDeleteObject.disabled = true;
         setTransformEnabled(false);
         refreshOperandSelects();
         syncResizePanel();
@@ -744,17 +756,19 @@
       }
       var counts2 = {};
       for (var i = 0; i < n; i++) {
-        var k = Module._getObjectKind(i);
+        var oid = Module._getSceneObjectId(i);
+        var k = Module._getObjectKindById(oid);
         counts2[k] = (counts2[k] || 0) + 1;
         var opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = kindLabel(k) + " #" + counts2[k] + " (index " + i + ")";
+        opt.value = String(oid);
+        opt.textContent = kindLabel(k) + " #" + counts2[k] + " (id " + oid + ")";
         objectSelect.appendChild(opt);
       }
-      if (sel >= 0 && sel < n) objectSelect.value = String(sel);
+      if (sel > 0 && sceneHasObjectId(sel)) objectSelect.value = String(sel);
       else objectSelect.value = "";
-      btnDeselect.disabled = sel < 0;
-      setTransformEnabled(sel >= 0);
+      btnDeselect.disabled = sel <= 0;
+      btnDeleteObject.disabled = sel <= 0;
+      setTransformEnabled(sel > 0);
       refreshOperandSelects();
       syncResizePanel();
     }
@@ -766,25 +780,33 @@
 
     objectSelect.addEventListener("change", function () {
       var v = objectSelect.value;
-      Module._setSelectedObjectIndex(v === "" ? -1 : parseInt(v, 10));
+      Module._setSelectedObjectId(v === "" ? 0 : parseInt(v, 10));
       refreshObjectList();
     });
 
     document.getElementById("btnDeselect").addEventListener("click", function () {
-      Module._setSelectedObjectIndex(-1);
+      Module._setSelectedObjectId(0);
       objectSelect.value = "";
       refreshObjectList();
     });
 
+    btnDeleteObject.addEventListener("click", function () {
+      var id = Module._getSelectedObjectId();
+      if (id > 0) {
+        Module._removeSceneObject(id);
+        refreshObjectList();
+      }
+    });
+
     operandA.addEventListener("change", function () {
       var v = operandA.value;
-      Module._setBooleanOperandA(v === "" ? -1 : parseInt(v, 10));
+      Module._setBooleanOperandA(v === "" ? 0 : parseInt(v, 10));
       updateCsgButtons();
     });
 
     operandB.addEventListener("change", function () {
       var v = operandB.value;
-      Module._setBooleanOperandB(v === "" ? -1 : parseInt(v, 10));
+      Module._setBooleanOperandB(v === "" ? 0 : parseInt(v, 10));
       updateCsgButtons();
     });
 
@@ -908,8 +930,8 @@
           var h = parseFloat(document.getElementById("resCylH").value);
           var rs = parseInt(document.getElementById("resCylRs").value, 10);
           var hs = parseInt(document.getElementById("resCylHs").value, 10);
-          var sel = Module._getSelectedObjectIndex();
-          var k = sel >= 0 ? Module._getObjectKind(sel) : 0;
+          var sel = Module._getSelectedObjectId();
+          var k = sel > 0 ? Module._getObjectKindById(sel) : 0;
           if (k === 7) rt = 0;
           if (rb > 0 && rt >= 0 && h > 0) Module._resizeSelectedCylinder(rb, rt, h, rs, hs);
           refreshObjectList();

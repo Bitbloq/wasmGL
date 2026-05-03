@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "wasmgl_gl.h"
@@ -42,10 +43,40 @@ Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
 /** UI labels: 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus, 7 cone (wasmgl_exports.h). */
 std::vector<int> meshObjectKinds;
-static int g_selectedIndex{-1};
-/** Indices for constructive solid ops (union / subtract / intersect). Must differ. */
-static int g_boolOperandA{-1};
-static int g_boolOperandB{-1};
+/** Stable id per scene object (never reused); parallel to meshList. */
+std::vector<uint32_t> meshObjectIds;
+static uint32_t g_nextObjectId{1};
+/** 0 = none */
+static uint32_t g_selectedObjectId{0};
+/** 0 = none; operands must differ when both set. */
+static uint32_t g_boolOperandAId{0};
+static uint32_t g_boolOperandBId{0};
+
+namespace
+{
+int findIndexByObjectId(uint32_t id)
+{
+	if (id == 0)
+		return -1;
+	for (size_t i = 0; i < meshObjectIds.size(); ++i)
+		if (meshObjectIds[i] == id)
+			return static_cast<int>(i);
+	return -1;
+}
+
+uint32_t allocateObjectId()
+{
+	uint32_t const id = g_nextObjectId++;
+	if (g_nextObjectId == 0)
+		g_nextObjectId = 1;
+	return id;
+}
+
+int selectedMeshIndex()
+{
+	return findIndexByObjectId(g_selectedObjectId);
+}
+} // namespace
 
 Shader litShader;
 Shader lineShader;
@@ -321,7 +352,7 @@ void mainloop()
 		glUniformMatrix4fv(litShader.GetModelLocation(), 1, GL_FALSE, glm::value_ptr(model));
 		glUniformMatrix3fv(litShader.GetNormalMatrixLocation(), 1, GL_FALSE, glm::value_ptr(normalMat));
 		glm::vec3 col = mesh->getSolidColor();
-		if (g_selectedIndex >= 0 && static_cast<int>(i) == g_selectedIndex)
+		if (g_selectedObjectId != 0 && meshObjectIds[i] == g_selectedObjectId)
 			col = glm::min(col * 1.16f, glm::vec3(1.0f));
 		glUniform3fv(litShader.GetObjectColorLocation(), 1, glm::value_ptr(col));
 		mesh->RenderMesh();
@@ -345,7 +376,7 @@ void mainloop()
 
 extern "C" {
 
-void addCube(float width, float height, float depth)
+unsigned int addCube(float width, float height, float depth)
 {
 	GLfloat const w = std::max(1e-4f, width);
 	GLfloat const h = std::max(1e-4f, height);
@@ -354,12 +385,15 @@ void addCube(float width, float height, float depth)
 	cube->setSolidColor(glm::vec3(0.92f, 0.48f, 0.18f));
 	cube->rotate(alignThreeYUpToWorldZ());
 	cube->computeThreeBSP();
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(cube);
 	meshObjectKinds.push_back(1);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
-void addSphere(float radius, int widthSeg, int heightSeg)
+unsigned int addSphere(float radius, int widthSeg, int heightSeg)
 {
 	int const ws = std::max(3, widthSeg);
 	int const hs = std::max(2, heightSeg);
@@ -367,23 +401,29 @@ void addSphere(float radius, int widthSeg, int heightSeg)
 			SphereDimensions{std::max(0.01f, radius)},
 			SphereParameters{ws, hs, 0.0f, 2.0f * static_cast<float>(M_PI), 0.0f, static_cast<float>(M_PI)});
 	sphere->setSolidColor(glm::vec3(0.22f, 0.52f, 0.95f));
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(sphere);
 	meshObjectKinds.push_back(2);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
-void addPyramid(float side, float height)
+unsigned int addPyramid(float side, float height)
 {
 	GLfloat const s = std::max(1e-4f, side);
 	GLfloat const h = std::max(1e-4f, height);
 	auto pyr = createPyramid(PyramidDimensions{s, h});
 	pyr->setSolidColor(glm::vec3(0.75f, 0.55f, 0.22f));
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(pyr);
 	meshObjectKinds.push_back(4);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
-void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
+unsigned int addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
 {
 	int const rseg = std::max(3, radialSeg);
 	int const hseg = std::max(1, heightSeg);
@@ -393,12 +433,15 @@ void addCylinder(float radiusBottom, float radiusTop, float height, int radialSe
 	cyl->setSolidColor(glm::vec3(0.24f, 0.78f, 0.45f));
 	cyl->rotate(alignThreeYUpToWorldZ());
 	cyl->computeThreeBSP();
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(cyl);
 	meshObjectKinds.push_back(5);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
-void addCone(float radius, float height, int radialSeg, int heightSeg)
+unsigned int addCone(float radius, float height, int radialSeg, int heightSeg)
 {
 	int const rseg = std::max(3, radialSeg);
 	int const hseg = std::max(1, heightSeg);
@@ -408,12 +451,15 @@ void addCone(float radius, float height, int radialSeg, int heightSeg)
 	cone->setSolidColor(glm::vec3(0.95f, 0.42f, 0.28f));
 	cone->rotate(alignThreeYUpToWorldZ());
 	cone->computeThreeBSP();
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(cone);
 	meshObjectKinds.push_back(7);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
-void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
+unsigned int addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
 {
 	int const rs = std::max(3, radialSeg);
 	int const ts = std::max(3, tubularSeg);
@@ -421,9 +467,12 @@ void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSe
 			TorusDimensions{std::max(1e-4f, majorRadius), std::max(1e-4f, minorRadius)},
 			TorusParameters{rs, ts});
 	t->setSolidColor(glm::vec3(0.72f, 0.38f, 0.88f));
+	uint32_t const id = allocateObjectId();
 	meshList.push_back(t);
 	meshObjectKinds.push_back(6);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	meshObjectIds.push_back(id);
+	g_selectedObjectId = id;
+	return id;
 }
 
 int getSceneObjectCount(void)
@@ -431,36 +480,64 @@ int getSceneObjectCount(void)
 	return static_cast<int>(meshList.size());
 }
 
-void setSelectedObjectIndex(int idx)
+void setSelectedObjectId(unsigned int objectId)
 {
-	if (meshList.empty())
+	if (objectId == 0 || meshList.empty())
 	{
-		g_selectedIndex = -1;
+		g_selectedObjectId = 0;
 		return;
 	}
-	if (idx < 0 || idx >= static_cast<int>(meshList.size()))
-		g_selectedIndex = -1;
+	if (findIndexByObjectId(objectId) < 0)
+		g_selectedObjectId = 0;
 	else
-		g_selectedIndex = idx;
+		g_selectedObjectId = objectId;
 }
 
-int getSelectedObjectIndex(void)
+unsigned int getSelectedObjectId(void)
 {
-	return g_selectedIndex;
+	return g_selectedObjectId;
 }
 
-int getObjectKind(int index)
+unsigned int getSceneObjectId(int index)
 {
-	if (index < 0 || index >= static_cast<int>(meshObjectKinds.size()))
+	if (index < 0 || index >= static_cast<int>(meshObjectIds.size()))
 		return 0;
-	return meshObjectKinds[static_cast<size_t>(index)];
+	return meshObjectIds[static_cast<size_t>(index)];
+}
+
+int getObjectKindById(unsigned int objectId)
+{
+	int const idx = findIndexByObjectId(objectId);
+	if (idx < 0)
+		return 0;
+	return meshObjectKinds[static_cast<size_t>(idx)];
+}
+
+int removeSceneObject(unsigned int objectId)
+{
+	if (objectId == 0)
+		return 0;
+	int const idx = findIndexByObjectId(objectId);
+	if (idx < 0)
+		return 0;
+	meshList.erase(meshList.begin() + idx);
+	meshObjectKinds.erase(meshObjectKinds.begin() + idx);
+	meshObjectIds.erase(meshObjectIds.begin() + idx);
+	if (g_selectedObjectId == objectId)
+		g_selectedObjectId = 0;
+	if (g_boolOperandAId == objectId)
+		g_boolOperandAId = 0;
+	if (g_boolOperandBId == objectId)
+		g_boolOperandBId = 0;
+	return 1;
 }
 
 float getSelectedBoxWidth(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
 	if (!b)
 		return 0.0f;
 	return b->getDimensions().width;
@@ -468,9 +545,10 @@ float getSelectedBoxWidth(void)
 
 float getSelectedBoxHeight(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
 	if (!b)
 		return 0.0f;
 	return b->getDimensions().height;
@@ -478,9 +556,10 @@ float getSelectedBoxHeight(void)
 
 float getSelectedBoxDepth(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
 	if (!b)
 		return 0.0f;
 	return b->getDimensions().depth;
@@ -488,9 +567,10 @@ float getSelectedBoxDepth(void)
 
 float getSelectedSphereRadius(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
 	if (!s)
 		return 0.0f;
 	return s->getDimensions().radius;
@@ -498,9 +578,10 @@ float getSelectedSphereRadius(void)
 
 int getSelectedSphereWidthSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
 	if (!s)
 		return 0;
 	return s->getParameters().widthSegments;
@@ -508,9 +589,10 @@ int getSelectedSphereWidthSegments(void)
 
 int getSelectedSphereHeightSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
 	if (!s)
 		return 0;
 	return s->getParameters().heightSegments;
@@ -518,9 +600,10 @@ int getSelectedSphereHeightSegments(void)
 
 void resizeSelectedBox(float width, float height, float depth)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
 	if (!b)
 		return;
 	GLfloat const w = std::max(1e-4f, width);
@@ -532,9 +615,10 @@ void resizeSelectedBox(float width, float height, float depth)
 
 void resizeSelectedSphere(float radius, int widthSeg, int heightSeg)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
 	if (!s)
 		return;
 	int const ws = std::max(3, widthSeg);
@@ -549,9 +633,10 @@ void resizeSelectedSphere(float radius, int widthSeg, int heightSeg)
 
 float getSelectedPyramidSide(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
 	if (!p)
 		return 0.0f;
 	return p->getDimensions().side;
@@ -559,9 +644,10 @@ float getSelectedPyramidSide(void)
 
 float getSelectedPyramidHeight(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
 	if (!p)
 		return 0.0f;
 	return p->getDimensions().height;
@@ -569,9 +655,10 @@ float getSelectedPyramidHeight(void)
 
 void resizeSelectedPyramid(float side, float height)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
 	if (!p)
 		return;
 	p->setDimensions(PyramidDimensions{std::max(1e-4f, side), std::max(1e-4f, height)});
@@ -580,9 +667,10 @@ void resizeSelectedPyramid(float side, float height)
 
 float getSelectedCylinderRadiusBottom(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return 0.0f;
 	return c->getDimensions().radiusBottom;
@@ -590,9 +678,10 @@ float getSelectedCylinderRadiusBottom(void)
 
 float getSelectedCylinderRadiusTop(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return 0.0f;
 	return c->getDimensions().radiusTop;
@@ -600,9 +689,10 @@ float getSelectedCylinderRadiusTop(void)
 
 float getSelectedCylinderHeight(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return 0.0f;
 	return c->getDimensions().height;
@@ -610,9 +700,10 @@ float getSelectedCylinderHeight(void)
 
 int getSelectedCylinderRadialSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return 0;
 	return c->getParameters().radialSegments;
@@ -620,9 +711,10 @@ int getSelectedCylinderRadialSegments(void)
 
 int getSelectedCylinderHeightSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return 0;
 	return c->getParameters().heightSegments;
@@ -630,9 +722,10 @@ int getSelectedCylinderHeightSegments(void)
 
 void resizeSelectedCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
 	if (!c)
 		return;
 	int const rseg = std::max(3, radialSeg);
@@ -647,9 +740,10 @@ void resizeSelectedCylinder(float radiusBottom, float radiusTop, float height, i
 
 float getSelectedTorusMajorRadius(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
 	if (!t)
 		return 0.0f;
 	return t->getDimensions().majorRadius;
@@ -657,9 +751,10 @@ float getSelectedTorusMajorRadius(void)
 
 float getSelectedTorusMinorRadius(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0.0f;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
 	if (!t)
 		return 0.0f;
 	return t->getDimensions().minorRadius;
@@ -667,9 +762,10 @@ float getSelectedTorusMinorRadius(void)
 
 int getSelectedTorusRadialSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
 	if (!t)
 		return 0;
 	return t->getParameters().radialSegments;
@@ -677,9 +773,10 @@ int getSelectedTorusRadialSegments(void)
 
 int getSelectedTorusTubularSegments(void)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return 0;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
 	if (!t)
 		return 0;
 	return t->getParameters().tubularSegments;
@@ -687,9 +784,10 @@ int getSelectedTorusTubularSegments(void)
 
 void resizeSelectedTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(g_selectedIndex)]);
+	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
 	if (!t)
 		return;
 	int const rs = std::max(3, radialSeg);
@@ -704,9 +802,10 @@ void resizeSelectedTorus(float majorRadius, float minorRadius, int radialSeg, in
 
 void nudgeSelectedTranslate(float dx, float dy, float dz)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto mesh = meshList[static_cast<size_t>(g_selectedIndex)];
+	auto mesh = meshList[static_cast<size_t>(si)];
 	glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(dx, dy, dz));
 	*mesh->getModelMatrix() = T * (*mesh->getModelMatrix());
 	mesh->computeThreeBSP();
@@ -714,47 +813,48 @@ void nudgeSelectedTranslate(float dx, float dy, float dz)
 
 void nudgeSelectedRotateDegrees(float rxDeg, float ryDeg, float rzDeg)
 {
-	if (g_selectedIndex < 0 || g_selectedIndex >= static_cast<int>(meshList.size()))
+	int const si = selectedMeshIndex();
+	if (si < 0)
 		return;
-	auto mesh = meshList[static_cast<size_t>(g_selectedIndex)];
+	auto mesh = meshList[static_cast<size_t>(si)];
 	mesh->rotate(glm::vec3(glm::radians(rxDeg), glm::radians(ryDeg), glm::radians(rzDeg)));
 	mesh->computeThreeBSP();
 }
 
-void setBooleanOperandA(int idx)
+void setBooleanOperandA(unsigned int objectId)
 {
-	if (meshList.empty())
+	if (meshList.empty() || objectId == 0)
 	{
-		g_boolOperandA = -1;
+		g_boolOperandAId = 0;
 		return;
 	}
-	if (idx < 0 || idx >= static_cast<int>(meshList.size()))
-		g_boolOperandA = -1;
+	if (findIndexByObjectId(objectId) < 0)
+		g_boolOperandAId = 0;
 	else
-		g_boolOperandA = idx;
+		g_boolOperandAId = objectId;
 }
 
-void setBooleanOperandB(int idx)
+void setBooleanOperandB(unsigned int objectId)
 {
-	if (meshList.empty())
+	if (meshList.empty() || objectId == 0)
 	{
-		g_boolOperandB = -1;
+		g_boolOperandBId = 0;
 		return;
 	}
-	if (idx < 0 || idx >= static_cast<int>(meshList.size()))
-		g_boolOperandB = -1;
+	if (findIndexByObjectId(objectId) < 0)
+		g_boolOperandBId = 0;
 	else
-		g_boolOperandB = idx;
+		g_boolOperandBId = objectId;
 }
 
-int getBooleanOperandA(void)
+unsigned int getBooleanOperandA(void)
 {
-	return g_boolOperandA;
+	return g_boolOperandAId;
 }
 
-int getBooleanOperandB(void)
+unsigned int getBooleanOperandB(void)
 {
-	return g_boolOperandB;
+	return g_boolOperandBId;
 }
 
 static void applyBooleanResult(std::shared_ptr<Mesh> res, int indexA, int indexB)
@@ -765,50 +865,51 @@ static void applyBooleanResult(std::shared_ptr<Mesh> res, int indexA, int indexB
 	int const hi = std::max(indexA, indexB);
 	meshList.erase(meshList.begin() + hi);
 	meshObjectKinds.erase(meshObjectKinds.begin() + hi);
+	meshObjectIds.erase(meshObjectIds.begin() + hi);
 	meshList.erase(meshList.begin() + lo);
 	meshObjectKinds.erase(meshObjectKinds.begin() + lo);
+	meshObjectIds.erase(meshObjectIds.begin() + lo);
 	res->setSolidColor(glm::vec3(0.30f, 0.72f, 0.48f));
+	uint32_t const newId = allocateObjectId();
 	meshList.push_back(res);
 	meshObjectKinds.push_back(3);
-	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
-	g_boolOperandA = -1;
-	g_boolOperandB = -1;
+	meshObjectIds.push_back(newId);
+	g_selectedObjectId = newId;
+	g_boolOperandAId = 0;
+	g_boolOperandBId = 0;
 }
 
 void performBooleanUnion(void)
 {
-	int const n = static_cast<int>(meshList.size());
-	int const a = g_boolOperandA;
-	int const b = g_boolOperandB;
-	if (a < 0 || b < 0 || a == b || a >= n || b >= n)
+	int const ia = findIndexByObjectId(g_boolOperandAId);
+	int const ib = findIndexByObjectId(g_boolOperandBId);
+	if (ia < 0 || ib < 0 || ia == ib)
 		return;
-	auto ma = meshList[static_cast<size_t>(a)];
-	auto mb = meshList[static_cast<size_t>(b)];
-	applyBooleanResult(ma->add(mb), a, b);
+	auto ma = meshList[static_cast<size_t>(ia)];
+	auto mb = meshList[static_cast<size_t>(ib)];
+	applyBooleanResult(ma->add(mb), ia, ib);
 }
 
 void performBooleanDifference(void)
 {
-	int const n = static_cast<int>(meshList.size());
-	int const a = g_boolOperandA;
-	int const b = g_boolOperandB;
-	if (a < 0 || b < 0 || a == b || a >= n || b >= n)
+	int const ia = findIndexByObjectId(g_boolOperandAId);
+	int const ib = findIndexByObjectId(g_boolOperandBId);
+	if (ia < 0 || ib < 0 || ia == ib)
 		return;
-	auto ma = meshList[static_cast<size_t>(a)];
-	auto mb = meshList[static_cast<size_t>(b)];
-	applyBooleanResult(ma->subtract(mb), a, b);
+	auto ma = meshList[static_cast<size_t>(ia)];
+	auto mb = meshList[static_cast<size_t>(ib)];
+	applyBooleanResult(ma->subtract(mb), ia, ib);
 }
 
 void performBooleanIntersection(void)
 {
-	int const n = static_cast<int>(meshList.size());
-	int const a = g_boolOperandA;
-	int const b = g_boolOperandB;
-	if (a < 0 || b < 0 || a == b || a >= n || b >= n)
+	int const ia = findIndexByObjectId(g_boolOperandAId);
+	int const ib = findIndexByObjectId(g_boolOperandBId);
+	if (ia < 0 || ib < 0 || ia == ib)
 		return;
-	auto ma = meshList[static_cast<size_t>(a)];
-	auto mb = meshList[static_cast<size_t>(b)];
-	applyBooleanResult(ma->intersect(mb), a, b);
+	auto ma = meshList[static_cast<size_t>(ia)];
+	auto mb = meshList[static_cast<size_t>(ib)];
+	applyBooleanResult(ma->intersect(mb), ia, ib);
 }
 
 void cameraZoomIn(void)
