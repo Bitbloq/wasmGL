@@ -4,7 +4,8 @@
  * Keep this list in sync with CMake Emscripten flags:
  *   -sEXPORTED_FUNCTIONS=[_main,_addCube,...]
  *
- * Object kind (getObjectKind): 0 unknown, 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus, 7 cone (solid).
+ * Object kind (getObjectKind / getObjectKindById): 0 unknown, 1 cube, 2 sphere, 3 CSG, 4 pyramid,
+ * 5 cylinder, 6 torus, 7 cone (solid). Each object also has a permanent serial id (see getObjectSerialId).
  */
 
 #ifndef WASMGL_EXPORTS_H
@@ -21,18 +22,18 @@
 extern "C" {
 #endif
 
-WASMGL_KEEP void addCube(float width, float height, float depth);
-WASMGL_KEEP void addSphere(float radius, int widthSeg, int heightSeg);
+WASMGL_KEEP unsigned int addCube(float width, float height, float depth);
+WASMGL_KEEP unsigned int addSphere(float radius, int widthSeg, int heightSeg);
 /** Equilateral triangular base; `side` = base edge length. */
-WASMGL_KEEP void addPyramid(float side, float height);
+WASMGL_KEEP unsigned int addPyramid(float side, float height);
 /** Z-axis cylinder / truncated cylinder; equal radii = right cylinder. */
-WASMGL_KEEP void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg);
+WASMGL_KEEP unsigned int addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg);
 /** Solid cone (apex up): same mesh as cylinder with top radius 0 (Three.js ConeGeometry-style). */
-WASMGL_KEEP void addCone(float radius, float height, int radialSeg, int heightSeg);
+WASMGL_KEEP unsigned int addCone(float radius, float height, int radialSeg, int heightSeg);
 /** Ring in XY plane; major = hole-to-tube-center, minor = tube radius. */
-WASMGL_KEEP void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
-/** Add a primitive with demo-friendly default dimensions; kind = getObjectKind values. Returns new object index or -1. */
-WASMGL_KEEP int addDefaultObject(int kind);
+WASMGL_KEEP unsigned int addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg);
+/** Add a primitive with demo-friendly default dimensions; kind = getObjectKind values. Returns new object serial id or 0. */
+WASMGL_KEEP unsigned int addDefaultObject(int kind);
 
 /** Dolly orbit distance (TS zoom in/out, ~0.95^dolly per step), not FOV. */
 WASMGL_KEEP void cameraZoomOut(void);
@@ -42,10 +43,16 @@ WASMGL_KEEP void cameraNudgeViewPitchDegrees(float deltaDeg);
 WASMGL_KEEP void cameraNudgePositionView(float alongFront, float alongRight, float alongUp);
 
 WASMGL_KEEP int getSceneObjectCount(void);
-WASMGL_KEEP void setSelectedObjectIndex(int idx);
-WASMGL_KEEP int getSelectedObjectIndex(void);
+/** Prefer serial ids from JS; 0 clears selection. */
+WASMGL_KEEP void setSelectedObjectId(unsigned int serialId);
+WASMGL_KEEP unsigned int getSelectedObjectId(void);
 WASMGL_KEEP int getObjectKind(int index);
+WASMGL_KEEP int getObjectKindById(unsigned int serialId);
 WASMGL_KEEP int getObjectSerialId(int index);
+/** Same as getObjectSerialId for list slot `index`; 0 if out of range. */
+WASMGL_KEEP unsigned int getSceneObjectId(int index);
+/** Remove object by serial id; returns 1 if removed. */
+WASMGL_KEEP int removeSceneObject(unsigned int serialId);
 
 /** Kind-specific parameter slots are documented in docs/WEB_DEVELOPERS.md. */
 WASMGL_KEEP float getObjectFloatParameter(int objectIndex, int parameterIndex);

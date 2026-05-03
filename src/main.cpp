@@ -617,7 +617,7 @@ void mainloop()
 
 extern "C" {
 
-void addCube(float width, float height, float depth)
+unsigned int addCube(float width, float height, float depth)
 {
 	GLfloat const w = std::max(1e-4f, width);
 	GLfloat const h = std::max(1e-4f, height);
@@ -627,9 +627,10 @@ void addCube(float width, float height, float depth)
 	meshList.push_back(cube);
 	registerMeshState(KIND_BOX, cube);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-void addSphere(float radius, int widthSeg, int heightSeg)
+unsigned int addSphere(float radius, int widthSeg, int heightSeg)
 {
 	int const ws = std::max(3, widthSeg);
 	int const hs = std::max(2, heightSeg);
@@ -640,9 +641,10 @@ void addSphere(float radius, int widthSeg, int heightSeg)
 	meshList.push_back(sphere);
 	registerMeshState(KIND_SPHERE, sphere);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-void addPyramid(float side, float height)
+unsigned int addPyramid(float side, float height)
 {
 	GLfloat const s = std::max(1e-4f, side);
 	GLfloat const h = std::max(1e-4f, height);
@@ -651,9 +653,10 @@ void addPyramid(float side, float height)
 	meshList.push_back(pyr);
 	registerMeshState(KIND_PYRAMID, pyr);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-void addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
+unsigned int addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
 {
 	int const rseg = std::max(3, radialSeg);
 	int const hseg = std::max(1, heightSeg);
@@ -664,9 +667,10 @@ void addCylinder(float radiusBottom, float radiusTop, float height, int radialSe
 	meshList.push_back(cyl);
 	registerMeshState(KIND_CYLINDER, cyl);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-void addCone(float radius, float height, int radialSeg, int heightSeg)
+unsigned int addCone(float radius, float height, int radialSeg, int heightSeg)
 {
 	int const rseg = std::max(3, radialSeg);
 	int const hseg = std::max(1, heightSeg);
@@ -677,9 +681,10 @@ void addCone(float radius, float height, int radialSeg, int heightSeg)
 	meshList.push_back(cone);
 	registerMeshState(KIND_CONE, cone);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
+unsigned int addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
 {
 	int const rs = std::max(3, radialSeg);
 	int const ts = std::max(3, tubularSeg);
@@ -690,34 +695,28 @@ void addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSe
 	meshList.push_back(t);
 	registerMeshState(KIND_TORUS, t);
 	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
-int addDefaultObject(int kind)
+unsigned int addDefaultObject(int kind)
 {
 	switch (kind)
 	{
 	case KIND_BOX:
-		addCube(1.0f, 1.0f, 1.0f);
-		break;
+		return addCube(1.0f, 1.0f, 1.0f);
 	case KIND_SPHERE:
-		addSphere(0.5f, 18, 18);
-		break;
+		return addSphere(0.5f, 18, 18);
 	case KIND_PYRAMID:
-		addPyramid(1.0f, 1.0f);
-		break;
+		return addPyramid(1.0f, 1.0f);
 	case KIND_CYLINDER:
-		addCylinder(0.5f, 0.5f, 1.0f, 24, 1);
-		break;
+		return addCylinder(0.5f, 0.5f, 1.0f, 24, 1);
 	case KIND_TORUS:
-		addTorus(0.35f, 0.15f, 24, 32);
-		break;
+		return addTorus(0.35f, 0.15f, 24, 32);
 	case KIND_CONE:
-		addCone(0.5f, 1.0f, 24, 1);
-		break;
+		return addCone(0.5f, 1.0f, 24, 1);
 	default:
-		return -1;
+		return 0;
 	}
-	return g_selectedIndex;
 }
 
 int getSceneObjectCount(void)
@@ -725,22 +724,22 @@ int getSceneObjectCount(void)
 	return static_cast<int>(meshList.size());
 }
 
-void setSelectedObjectIndex(int idx)
+void setSelectedObjectId(unsigned int serialId)
 {
-	if (meshList.empty())
+	if (serialId == 0 || meshList.empty())
 	{
 		g_selectedIndex = -1;
 		return;
 	}
-	if (idx < 0 || idx >= static_cast<int>(meshList.size()))
-		g_selectedIndex = -1;
-	else
-		g_selectedIndex = idx;
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	g_selectedIndex = idx >= 0 ? idx : -1;
 }
 
-int getSelectedObjectIndex(void)
+unsigned int getSelectedObjectId(void)
 {
-	return g_selectedIndex;
+	if (!validMeshIndex(g_selectedIndex) || g_selectedIndex >= static_cast<int>(meshObjectStates.size()))
+		return 0;
+	return static_cast<unsigned int>(meshObjectStates[static_cast<size_t>(g_selectedIndex)].serialId);
 }
 
 int getObjectKind(int index)
@@ -750,11 +749,46 @@ int getObjectKind(int index)
 	return meshObjectStates[static_cast<size_t>(index)].kind;
 }
 
+int getObjectKindById(unsigned int serialId)
+{
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	if (idx < 0)
+		return 0;
+	return meshObjectStates[static_cast<size_t>(idx)].kind;
+}
+
 int getObjectSerialId(int index)
 {
 	if (index < 0 || index >= static_cast<int>(meshObjectStates.size()))
 		return 0;
 	return meshObjectStates[static_cast<size_t>(index)].serialId;
+}
+
+unsigned int getSceneObjectId(int index)
+{
+	if (index < 0 || index >= static_cast<int>(meshObjectStates.size()))
+		return 0;
+	return static_cast<unsigned int>(meshObjectStates[static_cast<size_t>(index)].serialId);
+}
+
+int removeSceneObject(unsigned int serialId)
+{
+	if (serialId == 0)
+		return 0;
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	if (idx < 0)
+		return 0;
+	meshList.erase(meshList.begin() + idx);
+	meshObjectStates.erase(meshObjectStates.begin() + idx);
+	g_boolSelectionSerials.erase(
+			std::remove(g_boolSelectionSerials.begin(), g_boolSelectionSerials.end(), static_cast<int>(serialId)),
+			g_boolSelectionSerials.end());
+	if (g_selectedIndex == idx)
+		g_selectedIndex = -1;
+	else if (g_selectedIndex > idx)
+		g_selectedIndex--;
+	pruneBooleanSelection();
+	return 1;
 }
 
 float getObjectFloatParameter(int objectIndex, int parameterIndex)

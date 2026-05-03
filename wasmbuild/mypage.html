@@ -488,6 +488,9 @@
           <span class="badge" id="objectCountBadge">0</span>
         </div>
         <div id="objectList" class="object-list"></div>
+        <div class="button-row" style="margin-top: 12px;">
+          <button type="button" id="btnRemoveObject" class="danger" disabled>Remove from scene</button>
+        </div>
       </section>
 
       <section class="card hidden" id="csgCard" aria-labelledby="csg-title">
@@ -530,6 +533,7 @@
     var statusLine = document.getElementById("statusLine");
     var csgCard = document.getElementById("csgCard");
     var csgSummary = document.getElementById("csgSummary");
+    var btnRemoveObject = document.getElementById("btnRemoveObject");
     var runtimeReady = false;
     var selectedSerials = [];
 
@@ -642,8 +646,8 @@
         }
       }
       selectedSerials = kept;
-      var primary = selectedSerials.length > 0 ? indexBySerial(selectedSerials[0]) : -1;
-      Module._setSelectedObjectIndex(primary);
+      var primary = selectedSerials.length > 0 ? selectedSerials[0] : 0;
+      Module._setSelectedObjectId(primary);
     }
 
     function updateShapeDefaults() {
@@ -685,6 +689,7 @@
       var n = objectCount();
       objectCountBadge.textContent = String(n);
       objectList.innerHTML = "";
+      btnRemoveObject.disabled = selectedSerials.length === 0;
       if (n === 0) {
         var empty = document.createElement("div");
         empty.className = "empty-state";
@@ -709,7 +714,7 @@
 
         item.innerHTML =
           "<span class=\"object-index\">" + String(i + 1).padStart(2, "0") + "</span>" +
-          "<span class=\"object-name\"><strong>" + objectName(i) + "</strong><span>wasm index " + i + " - engine serial " + serial + "</span></span>" +
+          "<span class=\"object-name\"><strong>" + objectName(i) + "</strong><span>object id " + serial + "</span></span>" +
           badge;
         objectList.appendChild(item);
       }
@@ -728,7 +733,7 @@
     }
 
     function renderDimensionEditor(index, kind) {
-      Module._setSelectedObjectIndex(index);
+      Module._setSelectedObjectId(serialAt(index));
       if (kind === 3) {
         return "<p class=\"hint\">This is a baked CSG mesh. Its primitive dimensions are not parametric, but wasm still owns the transform operation stack below.</p>";
       }
@@ -934,8 +939,8 @@
       var index = indexBySerial(selectedSerials[0]);
       if (index < 0) return;
       var kind = Module._getObjectKind(index);
-      Module._setSelectedObjectIndex(index);
-      var html = "<section class=\"card\"><p class=\"eyebrow\">wasm index " + index + "</p><h1 style=\"font-size: 2.5rem; margin-bottom: 10px;\">" + objectName(index) + "</h1><p class=\"hint\">" + kindLabel(kind) + " - data comes from the wasm engine.</p></section>" +
+      Module._setSelectedObjectId(selectedSerials[0]);
+      var html = "<section class=\"card\"><p class=\"eyebrow\">object id " + selectedSerials[0] + "</p><h1 style=\"font-size: 2.5rem; margin-bottom: 10px;\">" + objectName(index) + "</h1><p class=\"hint\">" + kindLabel(kind) + " - data comes from the wasm engine.</p></section>" +
         "<section class=\"card\"><h2>Dimensions</h2>" + renderDimensionEditor(index, kind) + "</section>" +
         "<section class=\"card\"><h2>Geometric Operations</h2><p class=\"hint\">Wasm owns the ordered list and cached transform matrices. Scene-frame operations pre-multiply the object matrix; object-frame operations post-multiply it and follow the object's self axes.</p><div class=\"divider\"></div>" + renderOperationEditor(index) + "</section>";
       rightPanelContent.innerHTML = html;
@@ -977,11 +982,22 @@
     function addSelectedShape() {
       if (!runtimeReady) return;
       var before = objectCount();
-      var addedIndex = Module._addDefaultObject(SHAPES[shapeType.value].kind);
+      var newSerial = Module._addDefaultObject(SHAPES[shapeType.value].kind);
       var after = objectCount();
-      if (after <= before || addedIndex < 0) return;
-      selectedSerials = [serialAt(addedIndex)];
-      Module._setSelectedObjectIndex(addedIndex);
+      if (after <= before || newSerial <= 0) return;
+      selectedSerials = [newSerial];
+      Module._setSelectedObjectId(newSerial);
+      renderAll();
+    }
+
+    function removeSelectedFromScene() {
+      if (!runtimeReady || selectedSerials.length === 0) return;
+      var toRemove = selectedSerials.slice();
+      for (var i = 0; i < toRemove.length; i++) {
+        Module._removeSceneObject(toRemove[i]);
+      }
+      selectedSerials = [];
+      Module._setSelectedObjectId(0);
       renderAll();
     }
 
@@ -1001,6 +1017,7 @@
     }
 
     document.getElementById("btnAddShape").addEventListener("click", addSelectedShape);
+    btnRemoveObject.addEventListener("click", removeSelectedFromScene);
     document.getElementById("btnUnion").addEventListener("click", function () { runCsg("union"); });
     document.getElementById("btnDifference").addEventListener("click", function () { runCsg("difference"); });
     document.getElementById("btnIntersection").addEventListener("click", function () { runCsg("intersection"); });

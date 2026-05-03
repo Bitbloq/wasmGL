@@ -87,6 +87,8 @@ All scene and object self-reference systems are **Z-up**. Box, cylinder, and con
 
 ### Scene: add primitives
 
+Each call returns an unsigned **serial id** for the new object.
+
 | JS call | Parameters | Notes |
 |---------|------------|--------|
 | `_addCube(w, h, d)` | width, height, depth (> 0) | Box; orange tint; becomes selected |
@@ -95,17 +97,22 @@ All scene and object self-reference systems are **Z-up**. Box, cylinder, and con
 | `_addCylinder(rBottom, rTop, height, radialSeg, heightSeg)` | radii >= 0; height > 0 | Frustum; cone uses `_addCone` |
 | `_addCone(radius, height, radialSeg, heightSeg)` | top radius 0 internally | |
 | `_addTorus(majorR, minorR, radialSeg, tubularSeg)` | standard torus | |
-| `_addDefaultObject(kind)` | kind from `getObjectKind` values | Adds demo-friendly 1-ish default dimensions and returns the new index, or `-1` |
+| `_addDefaultObject(kind)` | kind from `getObjectKind` values | Adds demo-friendly 1-ish default dimensions and returns the new object **serial id**, or `0` on failure |
+
+Each `add*` call returns the new object's **serial id** (unsigned). Prefer referencing objects by serial from JavaScript; scene array indices still appear in parameter/transform APIs as `objectIndex`.
 
 ### Scene: selection and queries
 
 | JS call | Returns | Notes |
 |---------|---------|--------|
 | `_getSceneObjectCount()` | `int` | Number of meshes |
-| `_setSelectedObjectIndex(idx)` | none | `idx` in `[0, n-1]` or `-1` for none |
-| `_getSelectedObjectIndex()` | `int` | `-1` if none |
-| `_getObjectKind(index)` | `int` | `0` unknown, `1` cube, `2` sphere, `3` CSG, `4` pyramid, `5` cylinder, `6` torus, `7` cone |
-| `_getObjectSerialId(index)` | `int` | Stable engine-owned id for UI labels / selection tracking while indices shift after CSG |
+| `_setSelectedObjectId(serialId)` | none | `0` clears selection |
+| `_getSelectedObjectId()` | unsigned | `0` if none |
+| `_getObjectKind(index)` | `int` | Kind by scene index; `0` unknown |
+| `_getObjectKindById(serialId)` | `int` | Kind by serial id |
+| `_getObjectSerialId(index)` | `int` | Stable engine-owned id (same as slot below) |
+| `_getSceneObjectId(index)` | unsigned | Serial id at list index; `0` if out of range |
+| `_removeSceneObject(serialId)` | `int` | `1` if removed |
 
 ### Object parameters
 

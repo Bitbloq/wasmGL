@@ -52,10 +52,13 @@ if(EMSCRIPTEN)
     _cameraNudgeViewPitchDegrees
     _cameraNudgePositionView
     _getSceneObjectCount
-    _setSelectedObjectIndex
-    _getSelectedObjectIndex
+    _setSelectedObjectId
+    _getSelectedObjectId
     _getObjectKind
+    _getObjectKindById
     _getObjectSerialId
+    _getSceneObjectId
+    _removeSceneObject
     _getObjectFloatParameter
     _getObjectIntParameter
     _setObjectParameters
