@@ -3,7 +3,7 @@
 
 #include "../core/mesh.h"
 
-/** Full height along Y; bottom at y = -height/2, top at y = +height/2. Equal radii = right cylinder. */
+/** Full height along object-local Z after geometry creation. Equal radii = right cylinder. */
 class CylinderDimensions
 {
 public:

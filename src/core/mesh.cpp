@@ -87,6 +87,21 @@ void Mesh::computeThreeBSP()
 	threeBSPDone = true;
 }
 
+bool Mesh::getLocalBounds(glm::vec3 &minOut, glm::vec3 &maxOut) const
+{
+	if (vertices.empty())
+		return false;
+
+	minOut = vertices.front();
+	maxOut = vertices.front();
+	for (auto const &v : vertices)
+	{
+		minOut = glm::min(minOut, v);
+		maxOut = glm::max(maxOut, v);
+	}
+	return true;
+}
+
 shared_ptr<Mesh> Mesh::subtract(shared_ptr<Mesh> const &other)
 {
 	if (!threeBSPDone)

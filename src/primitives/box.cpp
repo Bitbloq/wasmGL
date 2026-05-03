@@ -95,7 +95,6 @@ void Box::rebuildGeometry()
 	computeFaces();
 	createMesh();
 	threeBSPDone = false;
-	computeThreeBSP();
 }
 
 void Box::createVertices()
@@ -118,4 +117,8 @@ void Box::createVertices()
 	buildPlane('x', 'z', 'y', 1.0f, -1.0f, w, d, -h, widthSegments, depthSegments, vertices, indices);
 	buildPlane('x', 'y', 'z', 1.0f, -1.0f, w, h, d, widthSegments, heightSegments, vertices, indices);
 	buildPlane('x', 'y', 'z', -1.0f, -1.0f, w, h, -d, widthSegments, heightSegments, vertices, indices);
+
+	/** Bake the old Y-up -> Z-up alignment into geometry so object-local Z is up at identity model. */
+	for (auto &p : vertices)
+		p = glm::vec3(p.x, -p.z, p.y);
 }

@@ -36,6 +36,7 @@ public:
 	void scale(glm::vec3 const &scale);
 
 	shared_ptr<glm::mat4> getModelMatrix() const { return model; }
+	bool getLocalBounds(glm::vec3 &minOut, glm::vec3 &maxOut) const;
 
 	glm::f32 *getModelPtr();
 
@@ -112,7 +113,7 @@ protected:
 
 	shared_ptr<glm::mat4> model;
 
-	/** Albedo for Phong shading (linear RGB, 0–1). */
+	/** Albedo for Phong shading (linear RGB, 0-1). */
 	glm::vec3 solidColor{0.45f, 0.55f, 0.85f};
 
 	int id; // unique id for this instance

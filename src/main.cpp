@@ -3,10 +3,7 @@
 
 #include <memory>
 #include <algorithm>
-#include <stdio.h>
-#include <string.h>
 #include <cmath>
-#include <cstdint>
 #include <vector>
 
 #include "wasmgl_gl.h"
@@ -41,45 +38,63 @@
 
 Window mainWindow;
 std::vector<std::shared_ptr<Mesh>> meshList;
-/** UI labels: 1 cube, 2 sphere, 3 CSG, 4 pyramid, 5 cylinder, 6 torus, 7 cone (wasmgl_exports.h). */
-std::vector<int> meshObjectKinds;
-/** Stable id per scene object (never reused); parallel to meshList. */
-std::vector<uint32_t> meshObjectIds;
-static uint32_t g_nextObjectId{1};
-/** 0 = none */
-static uint32_t g_selectedObjectId{0};
-/** 0 = none; operands must differ when both set. */
-static uint32_t g_boolOperandAId{0};
-static uint32_t g_boolOperandBId{0};
+enum ObjectKind
+{
+	KIND_BOX = 1,
+	KIND_SPHERE = 2,
+	KIND_CSG = 3,
+	KIND_PYRAMID = 4,
+	KIND_CYLINDER = 5,
+	KIND_TORUS = 6,
+	KIND_CONE = 7,
+};
 
-namespace
+enum TransformOperationType
 {
-int findIndexByObjectId(uint32_t id)
-{
-	if (id == 0)
-		return -1;
-	for (size_t i = 0; i < meshObjectIds.size(); ++i)
-		if (meshObjectIds[i] == id)
-			return static_cast<int>(i);
-	return -1;
-}
+	TRANSFORM_TRANSLATION = 1,
+	TRANSFORM_ROTATION = 2,
+};
 
-uint32_t allocateObjectId()
+enum TransformReferenceFrame
 {
-	uint32_t const id = g_nextObjectId++;
-	if (g_nextObjectId == 0)
-		g_nextObjectId = 1;
-	return id;
-}
+	TRANSFORM_FRAME_SCENE = 1,
+	TRANSFORM_FRAME_OBJECT = 2,
+};
 
-int selectedMeshIndex()
+enum BooleanOperation
 {
-	return findIndexByObjectId(g_selectedObjectId);
-}
-} // namespace
+	BOOLEAN_UNION = 1,
+	BOOLEAN_DIFFERENCE = 2,
+	BOOLEAN_INTERSECTION = 3,
+};
+
+struct TransformOperationState
+{
+	int type{TRANSFORM_TRANSLATION};
+	int frame{TRANSFORM_FRAME_SCENE};
+	glm::vec3 values{0.0f};
+	glm::mat4 cachedModel{1.0f};
+};
+
+struct MeshObjectState
+{
+	int kind{0};
+	int serialId{0};
+	glm::mat4 baseModel{1.0f};
+	std::vector<TransformOperationState> operations;
+};
+
+std::vector<MeshObjectState> meshObjectStates;
+static int g_nextObjectSerialId{1};
+static int g_selectedIndex{-1};
+/** Engine-owned multi-operand CSG selection, stored as serial ids so indices can shift while reducing. */
+static std::vector<int> g_boolSelectionSerials;
 
 Shader litShader;
 Shader lineShader;
+Shader selectedAxisShader;
+GLuint g_selectedAxisVAO{0};
+GLuint g_selectedAxisVBO{0};
 BaseGridRenderer g_baseGrid;
 AxisHelperOverlay g_axisHelper;
 NavigationCubeOverlay g_navigationCube;
@@ -87,10 +102,138 @@ OrbitCamera orbitCamera(glm::vec3(13.5f, 13.5f, 15.5f), glm::vec3(0.0f));
 
 namespace
 {
-/** Three.js meshes use +Y as cylinder/box height; +90° X maps height onto +Z (grid / world up). */
-inline glm::vec3 alignThreeYUpToWorldZ()
+bool validMeshIndex(int idx)
 {
-	return glm::vec3(glm::radians(90.0f), 0.0f, 0.0f);
+	return idx >= 0 && idx < static_cast<int>(meshList.size());
+}
+
+bool validObjectStateIndex(int idx)
+{
+	return validMeshIndex(idx) && idx < static_cast<int>(meshObjectStates.size());
+}
+
+int indexBySerialId(int serialId)
+{
+	for (size_t i = 0; i < meshObjectStates.size(); ++i)
+	{
+		if (meshObjectStates[i].serialId == serialId)
+			return static_cast<int>(i);
+	}
+	return -1;
+}
+
+std::shared_ptr<Mesh> meshAt(int index)
+{
+	if (!validMeshIndex(index))
+		return nullptr;
+	return meshList[static_cast<size_t>(index)];
+}
+
+template <typename T>
+std::shared_ptr<T> objectAs(int index)
+{
+	auto mesh = meshAt(index);
+	return mesh ? std::dynamic_pointer_cast<T>(mesh) : nullptr;
+}
+
+glm::mat4 operationMatrix(TransformOperationState const &op)
+{
+	if (op.type == TRANSFORM_ROTATION)
+	{
+		glm::mat4 R(1.0f);
+		R = glm::rotate(R, glm::radians(op.values.x), glm::vec3(1.0f, 0.0f, 0.0f));
+		R = glm::rotate(R, glm::radians(op.values.y), glm::vec3(0.0f, 1.0f, 0.0f));
+		R = glm::rotate(R, glm::radians(op.values.z), glm::vec3(0.0f, 0.0f, 1.0f));
+		return R;
+	}
+	return glm::translate(glm::mat4(1.0f), op.values);
+}
+
+void applyTransformCacheFrom(int objectIndex, int firstDirtyOp)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return;
+
+	auto &state = meshObjectStates[static_cast<size_t>(objectIndex)];
+	int const count = static_cast<int>(state.operations.size());
+	int const start = std::max(0, std::min(firstDirtyOp, count));
+	glm::mat4 running = start > 0
+													? state.operations[static_cast<size_t>(start - 1)].cachedModel
+													: state.baseModel;
+
+	for (int i = start; i < count; ++i)
+	{
+		auto &op = state.operations[static_cast<size_t>(i)];
+		glm::mat4 const opMat = operationMatrix(op);
+		running = op.frame == TRANSFORM_FRAME_OBJECT ? running * opMat : opMat * running;
+		op.cachedModel = running;
+	}
+
+	if (count == 0)
+		running = state.baseModel;
+
+	*meshList[static_cast<size_t>(objectIndex)]->getModelMatrix() = running;
+	meshList[static_cast<size_t>(objectIndex)]->threeBSPDone = false;
+}
+
+void registerMeshState(int kind, std::shared_ptr<Mesh> const &mesh, glm::mat4 const *baseOverride = nullptr)
+{
+	MeshObjectState state;
+	state.kind = kind;
+	state.serialId = g_nextObjectSerialId++;
+	state.baseModel = baseOverride ? *baseOverride : *mesh->getModelMatrix();
+	meshObjectStates.push_back(state);
+}
+
+int addTransformOperation(int objectIndex, int type, int frame = TRANSFORM_FRAME_SCENE)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return -1;
+	auto &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	TransformOperationState op;
+	op.type = type == TRANSFORM_ROTATION ? TRANSFORM_ROTATION : TRANSFORM_TRANSLATION;
+	op.frame = frame == TRANSFORM_FRAME_OBJECT ? TRANSFORM_FRAME_OBJECT : TRANSFORM_FRAME_SCENE;
+	ops.push_back(op);
+	int const opIndex = static_cast<int>(ops.size()) - 1;
+	applyTransformCacheFrom(objectIndex, opIndex);
+	return opIndex;
+}
+
+void setTransformOperationFullValue(int objectIndex, int opIndex, int type, int frame, float x, float y, float z)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return;
+	auto &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	if (opIndex < 0 || opIndex >= static_cast<int>(ops.size()))
+		return;
+	auto &op = ops[static_cast<size_t>(opIndex)];
+	op.type = type == TRANSFORM_ROTATION ? TRANSFORM_ROTATION : TRANSFORM_TRANSLATION;
+	op.frame = frame == TRANSFORM_FRAME_OBJECT ? TRANSFORM_FRAME_OBJECT : TRANSFORM_FRAME_SCENE;
+	op.values = glm::vec3(x, y, z);
+	applyTransformCacheFrom(objectIndex, opIndex);
+}
+
+void pruneBooleanSelection()
+{
+	std::vector<int> pruned;
+	pruned.reserve(g_boolSelectionSerials.size());
+	for (int serial : g_boolSelectionSerials)
+	{
+		if (indexBySerialId(serial) >= 0 && std::find(pruned.begin(), pruned.end(), serial) == pruned.end())
+			pruned.push_back(serial);
+	}
+	g_boolSelectionSerials.swap(pruned);
+}
+
+void removeTransformOperation(int objectIndex, int opIndex)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return;
+	auto &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	if (opIndex < 0 || opIndex >= static_cast<int>(ops.size()))
+		return;
+	ops.erase(ops.begin() + opIndex);
+	applyTransformCacheFrom(objectIndex, opIndex);
 }
 } // namespace
 GLfloat deltaTime{0.0f};
@@ -225,13 +368,62 @@ static const char *fLine =
 
 #endif
 
+#ifdef __EMSCRIPTEN__
+static const GLchar *vSelectedAxis =
+		"#version 300 es                                          \n"
+		"uniform mat4 mvp;                                      \n"
+		"layout(location = 0) in vec3 pos;                      \n"
+		"layout(location = 1) in vec3 color;                    \n"
+		"out vec3 vColor;                                       \n"
+		"void main() {                                          \n"
+		"  vColor = color;                                      \n"
+		"  gl_Position = mvp * vec4(pos, 1.0);                  \n"
+		"}                                                      \n";
+
+static const GLchar *fSelectedAxis =
+		"#version 300 es                                          \n"
+		"precision mediump float;                               \n"
+		"in vec3 vColor;                                        \n"
+		"out vec4 fragColor;                                    \n"
+		"void main() { fragColor = vec4(vColor, 1.0); }        \n";
+#else
+static const GLchar *vSelectedAxis =
+		"#version 330 core                                        \n"
+		"uniform mat4 mvp;                                      \n"
+		"layout(location = 0) in vec3 pos;                      \n"
+		"layout(location = 1) in vec3 color;                    \n"
+		"out vec3 vColor;                                       \n"
+		"void main() {                                          \n"
+		"  vColor = color;                                      \n"
+		"  gl_Position = mvp * vec4(pos, 1.0);                  \n"
+		"}                                                      \n";
+
+static const GLchar *fSelectedAxis =
+		"#version 330 core                                        \n"
+		"in vec3 vColor;                                        \n"
+		"out vec4 fragColor;                                    \n"
+		"void main() { fragColor = vec4(vColor, 1.0); }        \n";
+#endif
+
 static glm::vec3 g_lightDirWorld;
 
 void CreateShaders()
 {
 	litShader.CreateFromString(vLit, fLit);
 	lineShader.CreateFromString(vLine, fLine);
-	/** Mostly downward / −Z-ish lighting so Z-up solids read clearly. */
+	selectedAxisShader.CreateFromString(vSelectedAxis, fSelectedAxis);
+	glGenVertexArrays(1, &g_selectedAxisVAO);
+	glGenBuffers(1, &g_selectedAxisVBO);
+	glBindVertexArray(g_selectedAxisVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, g_selectedAxisVBO);
+	glBufferData(GL_ARRAY_BUFFER, 6 * 6 * sizeof(GLfloat), nullptr, GL_DYNAMIC_DRAW);
+	GLsizei const stride = 6 * static_cast<GLsizei>(sizeof(GLfloat));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void *>(0));
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void *>(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+	glBindVertexArray(0);
+	/** Mostly downward / -Z-ish lighting so Z-up solids read clearly. */
 	g_lightDirWorld = glm::normalize(glm::vec3(0.28f, 0.22f, 0.92f));
 }
 
@@ -267,6 +459,54 @@ void emcmainloop(void *mainLoopArg)
 {
 	(void)mainLoopArg;
 	mainloop();
+}
+
+void renderSelectedObjectAxes(glm::mat4 const &view)
+{
+	if (!validMeshIndex(g_selectedIndex) || g_selectedIndex >= static_cast<int>(meshObjectStates.size()))
+		return;
+	if (g_selectedAxisVAO == 0 || g_selectedAxisVBO == 0)
+		return;
+
+	auto const &mesh = meshList[static_cast<size_t>(g_selectedIndex)];
+	glm::vec3 localMin(0.0f);
+	glm::vec3 localMax(0.0f);
+	if (!mesh->getLocalBounds(localMin, localMax))
+		return;
+
+	glm::vec3 const extent = localMax - localMin;
+	float const largestExtent = std::max(extent.x, std::max(extent.y, extent.z));
+	float const axisLen = std::max(0.5f, largestExtent * 1.15f);
+
+	GLfloat const interleaved[] = {
+			0.0f, 0.0f, 0.0f, 1.0f, 0.08f, 0.06f, axisLen, 0.0f, 0.0f, 1.0f, 0.08f, 0.06f,
+			0.0f, 0.0f, 0.0f, 0.16f, 0.95f, 0.32f, 0.0f, axisLen, 0.0f, 0.16f, 0.95f, 0.32f,
+			0.0f, 0.0f, 0.0f, 0.16f, 0.44f, 1.0f, 0.0f, 0.0f, axisLen, 0.16f, 0.44f, 1.0f,
+	};
+
+	GLboolean depthWasEnabled;
+	glGetBooleanv(GL_DEPTH_TEST, &depthWasEnabled);
+	glDisable(GL_DEPTH_TEST);
+
+	glm::mat4 const mvp = g_projection * view * (*mesh->getModelMatrix());
+	selectedAxisShader.UseShader();
+	GLint locMvp = selectedAxisShader.GetMVPLocation();
+	if (locMvp < 0)
+		locMvp = glGetUniformLocation(selectedAxisShader.GetProgramId(), "mvp");
+	if (locMvp >= 0)
+		glUniformMatrix4fv(locMvp, 1, GL_FALSE, glm::value_ptr(mvp));
+
+	glBindVertexArray(g_selectedAxisVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, g_selectedAxisVBO);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(interleaved), interleaved);
+	glLineWidth(3.0f);
+	glDrawArrays(GL_LINES, 0, 6);
+	glLineWidth(1.0f);
+	glBindVertexArray(0);
+	glUseProgram(0);
+
+	if (depthWasEnabled)
+		glEnable(GL_DEPTH_TEST);
 }
 
 void mainloop()
@@ -352,7 +592,7 @@ void mainloop()
 		glUniformMatrix4fv(litShader.GetModelLocation(), 1, GL_FALSE, glm::value_ptr(model));
 		glUniformMatrix3fv(litShader.GetNormalMatrixLocation(), 1, GL_FALSE, glm::value_ptr(normalMat));
 		glm::vec3 col = mesh->getSolidColor();
-		if (g_selectedObjectId != 0 && meshObjectIds[i] == g_selectedObjectId)
+		if (g_selectedIndex >= 0 && static_cast<int>(i) == g_selectedIndex)
 			col = glm::min(col * 1.16f, glm::vec3(1.0f));
 		glUniform3fv(litShader.GetObjectColorLocation(), 1, glm::value_ptr(col));
 		mesh->RenderMesh();
@@ -368,6 +608,7 @@ void mainloop()
 	}
 
 	glUseProgram(0);
+	renderSelectedObjectAxes(view);
 	g_axisHelper.render(orbitCamera);
 	g_navigationCube.render(orbitCamera);
 
@@ -383,14 +624,10 @@ unsigned int addCube(float width, float height, float depth)
 	GLfloat const d = std::max(1e-4f, depth);
 	auto cube = createBox(BoxDimensions{w, h, d});
 	cube->setSolidColor(glm::vec3(0.92f, 0.48f, 0.18f));
-	cube->rotate(alignThreeYUpToWorldZ());
-	cube->computeThreeBSP();
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(cube);
-	meshObjectKinds.push_back(1);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_BOX, cube);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
 unsigned int addSphere(float radius, int widthSeg, int heightSeg)
@@ -401,12 +638,10 @@ unsigned int addSphere(float radius, int widthSeg, int heightSeg)
 			SphereDimensions{std::max(0.01f, radius)},
 			SphereParameters{ws, hs, 0.0f, 2.0f * static_cast<float>(M_PI), 0.0f, static_cast<float>(M_PI)});
 	sphere->setSolidColor(glm::vec3(0.22f, 0.52f, 0.95f));
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(sphere);
-	meshObjectKinds.push_back(2);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_SPHERE, sphere);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
 unsigned int addPyramid(float side, float height)
@@ -415,12 +650,10 @@ unsigned int addPyramid(float side, float height)
 	GLfloat const h = std::max(1e-4f, height);
 	auto pyr = createPyramid(PyramidDimensions{s, h});
 	pyr->setSolidColor(glm::vec3(0.75f, 0.55f, 0.22f));
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(pyr);
-	meshObjectKinds.push_back(4);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_PYRAMID, pyr);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
 unsigned int addCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
@@ -431,14 +664,10 @@ unsigned int addCylinder(float radiusBottom, float radiusTop, float height, int 
 			CylinderDimensions{std::max(1e-4f, radiusBottom), std::max(1e-4f, radiusTop), std::max(1e-4f, height)},
 			CylinderParameters{rseg, hseg});
 	cyl->setSolidColor(glm::vec3(0.24f, 0.78f, 0.45f));
-	cyl->rotate(alignThreeYUpToWorldZ());
-	cyl->computeThreeBSP();
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(cyl);
-	meshObjectKinds.push_back(5);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_CYLINDER, cyl);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
 unsigned int addCone(float radius, float height, int radialSeg, int heightSeg)
@@ -449,14 +678,10 @@ unsigned int addCone(float radius, float height, int radialSeg, int heightSeg)
 			CylinderDimensions{std::max(1e-4f, radius), 0.0f, std::max(1e-4f, height)},
 			CylinderParameters{rseg, hseg});
 	cone->setSolidColor(glm::vec3(0.95f, 0.42f, 0.28f));
-	cone->rotate(alignThreeYUpToWorldZ());
-	cone->computeThreeBSP();
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(cone);
-	meshObjectKinds.push_back(7);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_CONE, cone);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
 }
 
 unsigned int addTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
@@ -467,12 +692,31 @@ unsigned int addTorus(float majorRadius, float minorRadius, int radialSeg, int t
 			TorusDimensions{std::max(1e-4f, majorRadius), std::max(1e-4f, minorRadius)},
 			TorusParameters{rs, ts});
 	t->setSolidColor(glm::vec3(0.72f, 0.38f, 0.88f));
-	uint32_t const id = allocateObjectId();
 	meshList.push_back(t);
-	meshObjectKinds.push_back(6);
-	meshObjectIds.push_back(id);
-	g_selectedObjectId = id;
-	return id;
+	registerMeshState(KIND_TORUS, t);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	return static_cast<unsigned int>(meshObjectStates.back().serialId);
+}
+
+unsigned int addDefaultObject(int kind)
+{
+	switch (kind)
+	{
+	case KIND_BOX:
+		return addCube(1.0f, 1.0f, 1.0f);
+	case KIND_SPHERE:
+		return addSphere(0.5f, 18, 18);
+	case KIND_PYRAMID:
+		return addPyramid(1.0f, 1.0f);
+	case KIND_CYLINDER:
+		return addCylinder(0.5f, 0.5f, 1.0f, 24, 1);
+	case KIND_TORUS:
+		return addTorus(0.35f, 0.15f, 24, 32);
+	case KIND_CONE:
+		return addCone(0.5f, 1.0f, 24, 1);
+	default:
+		return 0;
+	}
 }
 
 int getSceneObjectCount(void)
@@ -480,436 +724,399 @@ int getSceneObjectCount(void)
 	return static_cast<int>(meshList.size());
 }
 
-void setSelectedObjectId(unsigned int objectId)
+void setSelectedObjectId(unsigned int serialId)
 {
-	if (objectId == 0 || meshList.empty())
+	if (serialId == 0 || meshList.empty())
 	{
-		g_selectedObjectId = 0;
+		g_selectedIndex = -1;
 		return;
 	}
-	if (findIndexByObjectId(objectId) < 0)
-		g_selectedObjectId = 0;
-	else
-		g_selectedObjectId = objectId;
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	g_selectedIndex = idx >= 0 ? idx : -1;
 }
 
 unsigned int getSelectedObjectId(void)
 {
-	return g_selectedObjectId;
+	if (!validMeshIndex(g_selectedIndex) || g_selectedIndex >= static_cast<int>(meshObjectStates.size()))
+		return 0;
+	return static_cast<unsigned int>(meshObjectStates[static_cast<size_t>(g_selectedIndex)].serialId);
+}
+
+int getObjectKind(int index)
+{
+	if (index < 0 || index >= static_cast<int>(meshObjectStates.size()))
+		return 0;
+	return meshObjectStates[static_cast<size_t>(index)].kind;
+}
+
+int getObjectKindById(unsigned int serialId)
+{
+	int const idx = indexBySerialId(static_cast<int>(serialId));
+	if (idx < 0)
+		return 0;
+	return meshObjectStates[static_cast<size_t>(idx)].kind;
+}
+
+int getObjectSerialId(int index)
+{
+	if (index < 0 || index >= static_cast<int>(meshObjectStates.size()))
+		return 0;
+	return meshObjectStates[static_cast<size_t>(index)].serialId;
 }
 
 unsigned int getSceneObjectId(int index)
 {
-	if (index < 0 || index >= static_cast<int>(meshObjectIds.size()))
+	if (index < 0 || index >= static_cast<int>(meshObjectStates.size()))
 		return 0;
-	return meshObjectIds[static_cast<size_t>(index)];
+	return static_cast<unsigned int>(meshObjectStates[static_cast<size_t>(index)].serialId);
 }
 
-int getObjectKindById(unsigned int objectId)
+int removeSceneObject(unsigned int serialId)
 {
-	int const idx = findIndexByObjectId(objectId);
-	if (idx < 0)
+	if (serialId == 0)
 		return 0;
-	return meshObjectKinds[static_cast<size_t>(idx)];
-}
-
-int removeSceneObject(unsigned int objectId)
-{
-	if (objectId == 0)
-		return 0;
-	int const idx = findIndexByObjectId(objectId);
+	int const idx = indexBySerialId(static_cast<int>(serialId));
 	if (idx < 0)
 		return 0;
 	meshList.erase(meshList.begin() + idx);
-	meshObjectKinds.erase(meshObjectKinds.begin() + idx);
-	meshObjectIds.erase(meshObjectIds.begin() + idx);
-	if (g_selectedObjectId == objectId)
-		g_selectedObjectId = 0;
-	if (g_boolOperandAId == objectId)
-		g_boolOperandAId = 0;
-	if (g_boolOperandBId == objectId)
-		g_boolOperandBId = 0;
+	meshObjectStates.erase(meshObjectStates.begin() + idx);
+	g_boolSelectionSerials.erase(
+			std::remove(g_boolSelectionSerials.begin(), g_boolSelectionSerials.end(), static_cast<int>(serialId)),
+			g_boolSelectionSerials.end());
+	if (g_selectedIndex == idx)
+		g_selectedIndex = -1;
+	else if (g_selectedIndex > idx)
+		g_selectedIndex--;
+	pruneBooleanSelection();
 	return 1;
 }
 
-float getSelectedBoxWidth(void)
+float getObjectFloatParameter(int objectIndex, int parameterIndex)
 {
-	int const si = selectedMeshIndex();
-	if (si < 0)
+	if (!validObjectStateIndex(objectIndex))
 		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
-	if (!b)
-		return 0.0f;
-	return b->getDimensions().width;
-}
-
-float getSelectedBoxHeight(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
-	if (!b)
-		return 0.0f;
-	return b->getDimensions().height;
-}
-
-float getSelectedBoxDepth(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
-	if (!b)
-		return 0.0f;
-	return b->getDimensions().depth;
-}
-
-float getSelectedSphereRadius(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
-	if (!s)
-		return 0.0f;
-	return s->getDimensions().radius;
-}
-
-int getSelectedSphereWidthSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
-	if (!s)
-		return 0;
-	return s->getParameters().widthSegments;
-}
-
-int getSelectedSphereHeightSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
-	if (!s)
-		return 0;
-	return s->getParameters().heightSegments;
-}
-
-void resizeSelectedBox(float width, float height, float depth)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto b = std::dynamic_pointer_cast<Box>(meshList[static_cast<size_t>(si)]);
-	if (!b)
-		return;
-	GLfloat const w = std::max(1e-4f, width);
-	GLfloat const h = std::max(1e-4f, height);
-	GLfloat const d = std::max(1e-4f, depth);
-	b->setDimensions(BoxDimensions{w, h, d});
-	b->rebuildGeometry();
-}
-
-void resizeSelectedSphere(float radius, int widthSeg, int heightSeg)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto s = std::dynamic_pointer_cast<Sphere>(meshList[static_cast<size_t>(si)]);
-	if (!s)
-		return;
-	int const ws = std::max(3, widthSeg);
-	int const hs = std::max(2, heightSeg);
-	s->setDimensions(SphereDimensions{std::max(0.01f, radius)});
-	SphereParameters p = s->getParameters();
-	p.widthSegments = ws;
-	p.heightSegments = hs;
-	s->setParameters(p);
-	s->rebuildGeometry();
-}
-
-float getSelectedPyramidSide(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
-	if (!p)
-		return 0.0f;
-	return p->getDimensions().side;
-}
-
-float getSelectedPyramidHeight(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
-	if (!p)
-		return 0.0f;
-	return p->getDimensions().height;
-}
-
-void resizeSelectedPyramid(float side, float height)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto p = std::dynamic_pointer_cast<Pyramid>(meshList[static_cast<size_t>(si)]);
-	if (!p)
-		return;
-	p->setDimensions(PyramidDimensions{std::max(1e-4f, side), std::max(1e-4f, height)});
-	p->rebuildGeometry();
-}
-
-float getSelectedCylinderRadiusBottom(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return 0.0f;
-	return c->getDimensions().radiusBottom;
-}
-
-float getSelectedCylinderRadiusTop(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return 0.0f;
-	return c->getDimensions().radiusTop;
-}
-
-float getSelectedCylinderHeight(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return 0.0f;
-	return c->getDimensions().height;
-}
-
-int getSelectedCylinderRadialSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return 0;
-	return c->getParameters().radialSegments;
-}
-
-int getSelectedCylinderHeightSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return 0;
-	return c->getParameters().heightSegments;
-}
-
-void resizeSelectedCylinder(float radiusBottom, float radiusTop, float height, int radialSeg, int heightSeg)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto c = std::dynamic_pointer_cast<Cylinder>(meshList[static_cast<size_t>(si)]);
-	if (!c)
-		return;
-	int const rseg = std::max(3, radialSeg);
-	int const hseg = std::max(1, heightSeg);
-	c->setDimensions(CylinderDimensions{std::max(1e-4f, radiusBottom), std::max(1e-4f, radiusTop), std::max(1e-4f, height)});
-	CylinderParameters p = c->getParameters();
-	p.radialSegments = rseg;
-	p.heightSegments = hseg;
-	c->setParameters(p);
-	c->rebuildGeometry();
-}
-
-float getSelectedTorusMajorRadius(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
-	if (!t)
-		return 0.0f;
-	return t->getDimensions().majorRadius;
-}
-
-float getSelectedTorusMinorRadius(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0.0f;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
-	if (!t)
-		return 0.0f;
-	return t->getDimensions().minorRadius;
-}
-
-int getSelectedTorusRadialSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
-	if (!t)
-		return 0;
-	return t->getParameters().radialSegments;
-}
-
-int getSelectedTorusTubularSegments(void)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return 0;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
-	if (!t)
-		return 0;
-	return t->getParameters().tubularSegments;
-}
-
-void resizeSelectedTorus(float majorRadius, float minorRadius, int radialSeg, int tubularSeg)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto t = std::dynamic_pointer_cast<Torus>(meshList[static_cast<size_t>(si)]);
-	if (!t)
-		return;
-	int const rs = std::max(3, radialSeg);
-	int const ts = std::max(3, tubularSeg);
-	t->setDimensions(TorusDimensions{std::max(1e-4f, majorRadius), std::max(1e-4f, minorRadius)});
-	TorusParameters p = t->getParameters();
-	p.radialSegments = rs;
-	p.tubularSegments = ts;
-	t->setParameters(p);
-	t->rebuildGeometry();
-}
-
-void nudgeSelectedTranslate(float dx, float dy, float dz)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto mesh = meshList[static_cast<size_t>(si)];
-	glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(dx, dy, dz));
-	*mesh->getModelMatrix() = T * (*mesh->getModelMatrix());
-	mesh->computeThreeBSP();
-}
-
-void nudgeSelectedRotateDegrees(float rxDeg, float ryDeg, float rzDeg)
-{
-	int const si = selectedMeshIndex();
-	if (si < 0)
-		return;
-	auto mesh = meshList[static_cast<size_t>(si)];
-	mesh->rotate(glm::vec3(glm::radians(rxDeg), glm::radians(ryDeg), glm::radians(rzDeg)));
-	mesh->computeThreeBSP();
-}
-
-void setBooleanOperandA(unsigned int objectId)
-{
-	if (meshList.empty() || objectId == 0)
+	int const kind = meshObjectStates[static_cast<size_t>(objectIndex)].kind;
+	switch (kind)
 	{
-		g_boolOperandAId = 0;
-		return;
-	}
-	if (findIndexByObjectId(objectId) < 0)
-		g_boolOperandAId = 0;
-	else
-		g_boolOperandAId = objectId;
-}
-
-void setBooleanOperandB(unsigned int objectId)
-{
-	if (meshList.empty() || objectId == 0)
+	case KIND_BOX:
 	{
-		g_boolOperandBId = 0;
-		return;
+		auto b = objectAs<Box>(objectIndex);
+		if (!b)
+			return 0.0f;
+		auto const d = b->getDimensions();
+		if (parameterIndex == 0)
+			return d.width;
+		if (parameterIndex == 1)
+			return d.height;
+		if (parameterIndex == 2)
+			return d.depth;
+		break;
 	}
-	if (findIndexByObjectId(objectId) < 0)
-		g_boolOperandBId = 0;
-	else
-		g_boolOperandBId = objectId;
+	case KIND_SPHERE:
+	{
+		auto s = objectAs<Sphere>(objectIndex);
+		return (s && parameterIndex == 0) ? s->getDimensions().radius : 0.0f;
+	}
+	case KIND_PYRAMID:
+	{
+		auto p = objectAs<Pyramid>(objectIndex);
+		if (!p)
+			return 0.0f;
+		auto const d = p->getDimensions();
+		if (parameterIndex == 0)
+			return d.side;
+		if (parameterIndex == 1)
+			return d.height;
+		break;
+	}
+	case KIND_CYLINDER:
+	case KIND_CONE:
+	{
+		auto c = objectAs<Cylinder>(objectIndex);
+		if (!c)
+			return 0.0f;
+		auto const d = c->getDimensions();
+		if (parameterIndex == 0)
+			return d.radiusBottom;
+		if (parameterIndex == 1)
+			return kind == KIND_CONE ? 0.0f : d.radiusTop;
+		if (parameterIndex == 2)
+			return d.height;
+		break;
+	}
+	case KIND_TORUS:
+	{
+		auto t = objectAs<Torus>(objectIndex);
+		if (!t)
+			return 0.0f;
+		auto const d = t->getDimensions();
+		if (parameterIndex == 0)
+			return d.majorRadius;
+		if (parameterIndex == 1)
+			return d.minorRadius;
+		break;
+	}
+	default:
+		break;
+	}
+	return 0.0f;
 }
 
-unsigned int getBooleanOperandA(void)
+int getObjectIntParameter(int objectIndex, int parameterIndex)
 {
-	return g_boolOperandAId;
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	int const kind = meshObjectStates[static_cast<size_t>(objectIndex)].kind;
+	switch (kind)
+	{
+	case KIND_SPHERE:
+	{
+		auto s = objectAs<Sphere>(objectIndex);
+		if (!s)
+			return 0;
+		auto const p = s->getParameters();
+		return parameterIndex == 0 ? p.widthSegments : (parameterIndex == 1 ? p.heightSegments : 0);
+	}
+	case KIND_CYLINDER:
+	case KIND_CONE:
+	{
+		auto c = objectAs<Cylinder>(objectIndex);
+		if (!c)
+			return 0;
+		auto const p = c->getParameters();
+		return parameterIndex == 0 ? p.radialSegments : (parameterIndex == 1 ? p.heightSegments : 0);
+	}
+	case KIND_TORUS:
+	{
+		auto t = objectAs<Torus>(objectIndex);
+		if (!t)
+			return 0;
+		auto const p = t->getParameters();
+		return parameterIndex == 0 ? p.radialSegments : (parameterIndex == 1 ? p.tubularSegments : 0);
+	}
+	default:
+		return 0;
+	}
 }
 
-unsigned int getBooleanOperandB(void)
+int setObjectParameters(int objectIndex, float p0, float p1, float p2, int i0, int i1)
 {
-	return g_boolOperandBId;
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	int const kind = meshObjectStates[static_cast<size_t>(objectIndex)].kind;
+	switch (kind)
+	{
+	case KIND_BOX:
+	{
+		auto b = objectAs<Box>(objectIndex);
+		if (!b || !(p0 > 0.0f && p1 > 0.0f && p2 > 0.0f))
+			return 0;
+		b->setDimensions(BoxDimensions{std::max(1e-4f, p0), std::max(1e-4f, p1), std::max(1e-4f, p2)});
+		b->rebuildGeometry();
+		return 1;
+	}
+	case KIND_SPHERE:
+	{
+		auto s = objectAs<Sphere>(objectIndex);
+		if (!s || !(p0 > 0.0f))
+			return 0;
+		s->setDimensions(SphereDimensions{std::max(0.01f, p0)});
+		SphereParameters sp = s->getParameters();
+		sp.widthSegments = std::max(3, i0);
+		sp.heightSegments = std::max(2, i1);
+		s->setParameters(sp);
+		s->rebuildGeometry();
+		return 1;
+	}
+	case KIND_PYRAMID:
+	{
+		auto p = objectAs<Pyramid>(objectIndex);
+		if (!p || !(p0 > 0.0f && p1 > 0.0f))
+			return 0;
+		p->setDimensions(PyramidDimensions{std::max(1e-4f, p0), std::max(1e-4f, p1)});
+		p->rebuildGeometry();
+		return 1;
+	}
+	case KIND_CYLINDER:
+	case KIND_CONE:
+	{
+		auto c = objectAs<Cylinder>(objectIndex);
+		float const topRadius = kind == KIND_CONE ? 0.0f : p1;
+		if (!c || !(p0 > 0.0f && topRadius >= 0.0f && p2 > 0.0f))
+			return 0;
+		c->setDimensions(CylinderDimensions{std::max(1e-4f, p0), std::max(0.0f, topRadius), std::max(1e-4f, p2)});
+		CylinderParameters cp = c->getParameters();
+		cp.radialSegments = std::max(3, i0);
+		cp.heightSegments = std::max(1, i1);
+		c->setParameters(cp);
+		c->rebuildGeometry();
+		return 1;
+	}
+	case KIND_TORUS:
+	{
+		auto t = objectAs<Torus>(objectIndex);
+		if (!t || !(p0 > 0.0f && p1 > 0.0f))
+			return 0;
+		t->setDimensions(TorusDimensions{std::max(1e-4f, p0), std::max(1e-4f, p1)});
+		TorusParameters tp = t->getParameters();
+		tp.radialSegments = std::max(3, i0);
+		tp.tubularSegments = std::max(3, i1);
+		t->setParameters(tp);
+		t->rebuildGeometry();
+		return 1;
+	}
+	default:
+		return 0;
+	}
 }
 
-static void applyBooleanResult(std::shared_ptr<Mesh> res, int indexA, int indexB)
+int getObjectTransformOperationCount(int objectIndex)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	return static_cast<int>(meshObjectStates[static_cast<size_t>(objectIndex)].operations.size());
+}
+
+int getObjectTransformOperationType(int objectIndex, int opIndex)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	auto const &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	if (opIndex < 0 || opIndex >= static_cast<int>(ops.size()))
+		return 0;
+	return ops[static_cast<size_t>(opIndex)].type;
+}
+
+int getObjectTransformOperationFrame(int objectIndex, int opIndex)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	auto const &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	if (opIndex < 0 || opIndex >= static_cast<int>(ops.size()))
+		return 0;
+	return ops[static_cast<size_t>(opIndex)].frame;
+}
+
+float getObjectTransformOperationValue(int objectIndex, int opIndex, int axis)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return 0.0f;
+	auto const &ops = meshObjectStates[static_cast<size_t>(objectIndex)].operations;
+	if (opIndex < 0 || opIndex >= static_cast<int>(ops.size()))
+		return 0.0f;
+	auto const &v = ops[static_cast<size_t>(opIndex)].values;
+	if (axis == 0)
+		return v.x;
+	if (axis == 1)
+		return v.y;
+	if (axis == 2)
+		return v.z;
+	return 0.0f;
+}
+
+int addObjectTransformOperation(int objectIndex, int type, int frame)
+{
+	return addTransformOperation(objectIndex, type, frame);
+}
+
+void setObjectTransformOperationFull(int objectIndex, int opIndex, int type, int frame, float x, float y, float z)
+{
+	setTransformOperationFullValue(objectIndex, opIndex, type, frame, x, y, z);
+}
+
+void removeObjectTransformOperation(int objectIndex, int opIndex)
+{
+	removeTransformOperation(objectIndex, opIndex);
+}
+
+void clearBooleanSelection(void)
+{
+	g_boolSelectionSerials.clear();
+}
+
+int addBooleanSelectionObject(int objectIndex)
+{
+	if (!validObjectStateIndex(objectIndex))
+		return 0;
+	int const serial = meshObjectStates[static_cast<size_t>(objectIndex)].serialId;
+	if (std::find(g_boolSelectionSerials.begin(), g_boolSelectionSerials.end(), serial) == g_boolSelectionSerials.end())
+		g_boolSelectionSerials.push_back(serial);
+	return 1;
+}
+
+int getBooleanSelectionCount(void)
+{
+	pruneBooleanSelection();
+	return static_cast<int>(g_boolSelectionSerials.size());
+}
+
+int getBooleanSelectionObject(int selectionIndex)
+{
+	pruneBooleanSelection();
+	if (selectionIndex < 0 || selectionIndex >= static_cast<int>(g_boolSelectionSerials.size()))
+		return -1;
+	return indexBySerialId(g_boolSelectionSerials[static_cast<size_t>(selectionIndex)]);
+}
+
+static int applyBooleanResult(std::shared_ptr<Mesh> res, int indexA, int indexB)
 {
 	if (!res)
-		return;
+		return -1;
 	int const lo = std::min(indexA, indexB);
 	int const hi = std::max(indexA, indexB);
 	meshList.erase(meshList.begin() + hi);
-	meshObjectKinds.erase(meshObjectKinds.begin() + hi);
-	meshObjectIds.erase(meshObjectIds.begin() + hi);
+	meshObjectStates.erase(meshObjectStates.begin() + hi);
 	meshList.erase(meshList.begin() + lo);
-	meshObjectKinds.erase(meshObjectKinds.begin() + lo);
-	meshObjectIds.erase(meshObjectIds.begin() + lo);
+	meshObjectStates.erase(meshObjectStates.begin() + lo);
 	res->setSolidColor(glm::vec3(0.30f, 0.72f, 0.48f));
-	uint32_t const newId = allocateObjectId();
+	glm::mat4 const resultBaseModel = *res->getModelMatrix();
 	meshList.push_back(res);
-	meshObjectKinds.push_back(3);
-	meshObjectIds.push_back(newId);
-	g_selectedObjectId = newId;
-	g_boolOperandAId = 0;
-	g_boolOperandBId = 0;
+	registerMeshState(KIND_CSG, res, &resultBaseModel);
+	g_selectedIndex = static_cast<int>(meshList.size()) - 1;
+	g_boolSelectionSerials.clear();
+	g_boolSelectionSerials.push_back(meshObjectStates.back().serialId);
+	return g_selectedIndex;
 }
 
-void performBooleanUnion(void)
+static int performBooleanPair(int operation, int a, int b)
 {
-	int const ia = findIndexByObjectId(g_boolOperandAId);
-	int const ib = findIndexByObjectId(g_boolOperandBId);
-	if (ia < 0 || ib < 0 || ia == ib)
-		return;
-	auto ma = meshList[static_cast<size_t>(ia)];
-	auto mb = meshList[static_cast<size_t>(ib)];
-	applyBooleanResult(ma->add(mb), ia, ib);
+	int const n = static_cast<int>(meshList.size());
+	if (a < 0 || b < 0 || a == b || a >= n || b >= n)
+		return -1;
+
+	auto ma = meshList[static_cast<size_t>(a)];
+	auto mb = meshList[static_cast<size_t>(b)];
+	if (operation == BOOLEAN_UNION)
+		return applyBooleanResult(ma->add(mb), a, b);
+	if (operation == BOOLEAN_DIFFERENCE)
+		return applyBooleanResult(ma->subtract(mb), a, b);
+	if (operation == BOOLEAN_INTERSECTION)
+		return applyBooleanResult(ma->intersect(mb), a, b);
+	return -1;
 }
 
-void performBooleanDifference(void)
+int performBooleanOperation(int operation)
 {
-	int const ia = findIndexByObjectId(g_boolOperandAId);
-	int const ib = findIndexByObjectId(g_boolOperandBId);
-	if (ia < 0 || ib < 0 || ia == ib)
-		return;
-	auto ma = meshList[static_cast<size_t>(ia)];
-	auto mb = meshList[static_cast<size_t>(ib)];
-	applyBooleanResult(ma->subtract(mb), ia, ib);
-}
+	pruneBooleanSelection();
+	if (g_boolSelectionSerials.size() < 2)
+		return -1;
 
-void performBooleanIntersection(void)
-{
-	int const ia = findIndexByObjectId(g_boolOperandAId);
-	int const ib = findIndexByObjectId(g_boolOperandBId);
-	if (ia < 0 || ib < 0 || ia == ib)
-		return;
-	auto ma = meshList[static_cast<size_t>(ia)];
-	auto mb = meshList[static_cast<size_t>(ib)];
-	applyBooleanResult(ma->intersect(mb), ia, ib);
+	std::vector<int> operands = g_boolSelectionSerials;
+	int currentSerial = operands.front();
+	for (size_t i = 1; i < operands.size(); ++i)
+	{
+		int const a = indexBySerialId(currentSerial);
+		int const b = indexBySerialId(operands[i]);
+		int const resultIndex = performBooleanPair(operation, a, b);
+		if (resultIndex < 0)
+			return -1;
+		currentSerial = meshObjectStates[static_cast<size_t>(resultIndex)].serialId;
+	}
+
+	g_boolSelectionSerials.clear();
+	g_boolSelectionSerials.push_back(currentSerial);
+	g_selectedIndex = indexBySerialId(currentSerial);
+	return g_selectedIndex;
 }
 
 void cameraZoomIn(void)

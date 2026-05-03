@@ -4,851 +4,1023 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WasmGL — scene</title>
+  <title>WasmGL Studio</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --panel: #1a2332;
-      --border: #2d3a4d;
-      --text: #eef2f8;
-      --muted: #b8c6d8;
-      --accent: #3d8bfd;
-      --accent-dim: #2a5fad;
-      --radius: 10px;
-      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --ink: #f4f0e8;
+      --muted: #a8b0aa;
+      --faint: #6f7a73;
+      --panel: rgba(17, 23, 21, 0.86);
+      --line: rgba(244, 240, 232, 0.13);
+      --line-hot: rgba(224, 174, 95, 0.48);
+      --field: #0b100e;
+      --accent: #e0ae5f;
+      --accent-2: #6ed5b7;
+      --danger: #e2725b;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      --font: "Space Grotesk", "Avenir Next", "Trebuchet MS", sans-serif;
     }
 
     * { box-sizing: border-box; }
 
+    html,
     body {
       margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
+      min-height: 100%;
+      background: #080b0a;
+      color: var(--ink);
       font-family: var(--font);
       font-size: 15px;
-      line-height: 1.5;
+      line-height: 1.45;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 14%, rgba(110, 213, 183, 0.18), transparent 30%),
+        radial-gradient(circle at 82% 18%, rgba(224, 174, 95, 0.20), transparent 28%),
+        linear-gradient(145deg, #080b0a 0%, #111816 45%, #09100e 100%);
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--ink);
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: var(--line-hot);
+      background: rgba(224, 174, 95, 0.12);
+    }
+
+    button:disabled { opacity: 0.42; cursor: not-allowed; }
+
+    button.primary {
+      background: linear-gradient(135deg, #e0ae5f, #c8843f);
+      color: #17110a;
+      border-color: rgba(255, 226, 171, 0.7);
+      font-weight: 800;
+    }
+
+    button.secondary {
+      border-color: rgba(110, 213, 183, 0.45);
+      background: rgba(110, 213, 183, 0.10);
+    }
+
+    button.danger {
+      border-color: rgba(226, 114, 91, 0.46);
+      background: rgba(226, 114, 91, 0.10);
+    }
+
+    select,
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--field);
+      color: var(--ink);
+      padding: 10px 11px;
+      min-height: 42px;
+      outline: none;
+    }
+
+    select:focus,
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(224, 174, 95, 0.18);
     }
 
     .app {
       display: grid;
-      grid-template-columns: minmax(300px, 380px) 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-columns: minmax(280px, 340px) minmax(420px, 1fr) minmax(320px, 390px);
       min-height: 100vh;
+      height: 100vh;
     }
 
-    @media (max-width: 900px) {
-      .app { grid-template-columns: 1fr; }
-    }
-
-    header.shell-header {
-      grid-column: 1 / -1;
-      padding: 12px 20px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, #152028 0%, var(--bg) 100%);
-    }
-
-    header.shell-header h1 {
-      margin: 0 0 4px 0;
-      font-size: 1.15rem;
-      font-weight: 600;
-    }
-
-    header.shell-header .lead {
-      margin: 0;
-      font-size: 0.95rem;
-      color: var(--muted);
-      max-width: 72ch;
-    }
-
-    aside.panel {
-      padding: 16px;
-      border-right: 1px solid var(--border);
+    .rail {
+      position: relative;
+      z-index: 2;
       overflow-y: auto;
-      max-height: 100vh;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(13, 18, 16, 0.96), rgba(13, 18, 16, 0.80));
+      border-color: var(--line);
+      border-style: solid;
+      scrollbar-color: rgba(224, 174, 95, 0.35) transparent;
     }
 
-    @media (max-width: 900px) {
-      aside.panel { border-right: none; border-bottom: 1px solid var(--border); max-height: none; }
+    .rail.left { border-width: 0 1px 0 0; }
+    .rail.right { border-width: 0 0 0 1px; }
+
+    .brand { padding: 4px 4px 18px; }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent-2);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
     }
 
-    main.stage {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a2838 0%, var(--bg) 70%);
+    h1,
+    h2,
+    h3,
+    p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.07em;
     }
+
+    .lead,
+    .hint { color: var(--muted); margin-bottom: 0; }
 
     .card {
+      margin-bottom: 14px;
+      padding: 16px;
       background: var(--panel);
-      border: 1px solid var(--border);
+      border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 14px 16px;
-      margin-bottom: 12px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+      animation: rise 280ms ease both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .card h2 {
-      margin: 0 0 10px 0;
+      margin-bottom: 12px;
       font-size: 0.82rem;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #a8b8cc;
-      font-weight: 600;
-    }
-
-    .section-desc {
-      font-size: 0.88rem;
-      color: #c4d0e0;
-      margin: 0 0 10px 0;
-      line-height: 1.4;
-    }
-
-    .btn-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    button {
-      font-family: inherit;
-      font-size: 13px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #243044;
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-    }
-
-    button:hover:not(:disabled) {
-      background: #2d3d56;
-      border-color: #4a5f7a;
-    }
-
-    button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    button.primary {
-      background: var(--accent-dim);
-      border-color: var(--accent);
-      color: #fff;
-    }
-
-    button.primary:hover:not(:disabled) { background: var(--accent); }
-
-    button.ghost { background: transparent; }
-
-    select, input[type="number"] {
-      width: 100%;
-      padding: 9px 11px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #0d1218;
-      color: var(--text);
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-
-    input[type="number"] { margin-bottom: 0; }
-
-    select:focus, input[type="number"]:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
+      color: var(--ink);
     }
 
     .field-label {
       display: block;
-      font-size: 0.78rem;
+      margin: 12px 0 6px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #a8b5c8;
-      margin: 8px 0 4px;
     }
 
-    .field-label:first-of-type { margin-top: 0; }
+    .field-label:first-child { margin-top: 0; }
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
       gap: 8px;
+      align-items: center;
     }
 
-    .grid-3 {
+    .button-row.stack > button { flex: 1 1 100%; }
+
+    .shape-note {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(244, 240, 232, 0.16);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .shape-note strong { color: var(--accent); }
+
+    .object-list {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
+      gap: 8px;
+      max-height: 40vh;
+      overflow: auto;
+      padding-right: 2px;
     }
 
-    .grid-3 > label, .grid-2 > .span-2 {
+    .empty-state {
+      padding: 14px;
+      border: 1px dashed rgba(244, 240, 232, 0.16);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .object-item {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 11px 12px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.045);
+      cursor: pointer;
+      user-select: none;
+      transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+    }
+
+    .object-item:hover {
+      transform: translateX(2px);
+      border-color: rgba(110, 213, 183, 0.35);
+      background: rgba(110, 213, 183, 0.08);
+    }
+
+    .object-item.selected {
+      border-color: rgba(224, 174, 95, 0.78);
+      background: linear-gradient(135deg, rgba(224, 174, 95, 0.20), rgba(110, 213, 183, 0.08));
+    }
+
+    .object-index {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(244, 240, 232, 0.09);
+      color: var(--accent);
+      font-weight: 900;
       font-size: 0.78rem;
-      color: #b0bfd4;
-      text-align: center;
-      grid-column: 1 / -1;
     }
 
-    .grid-3 label { margin-top: 4px; }
-    .grid-3:first-of-type label { margin-top: 0; }
+    .object-name { min-width: 0; }
 
-    .grid-3.compact { margin-top: 6px; }
+    .object-name strong,
+    .object-name span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .object-name span { color: var(--muted); font-size: 0.78rem; }
 
     .badge {
-      display: inline-block;
-      font-size: 0.75rem;
-      padding: 2px 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      padding: 4px 8px;
       border-radius: 999px;
-      background: #243044;
-      color: var(--muted);
+      border: 1px solid rgba(224, 174, 95, 0.36);
+      background: rgba(224, 174, 95, 0.12);
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      align-items: center;
+      justify-items: center;
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 7% 8%;
+      background:
+        linear-gradient(rgba(244, 240, 232, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244, 240, 232, 0.05) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: radial-gradient(circle at center, black 0%, transparent 72%);
+      pointer-events: none;
+    }
+
+    .canvas-shell {
+      position: relative;
+      width: min(100%, 980px);
+      border-radius: 28px;
+      padding: 14px;
+      background:
+        linear-gradient(135deg, rgba(224, 174, 95, 0.30), rgba(110, 213, 183, 0.20)) border-box,
+        rgba(8, 11, 10, 0.86) padding-box;
+      border: 1px solid transparent;
+      box-shadow: var(--shadow);
     }
 
     canvas {
       display: block;
-      width: min(100%, 920px);
+      width: 100%;
       height: auto;
-      max-height: min(70vh, 640px);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      min-height: 420px;
+      border-radius: 20px;
+      border: 1px solid rgba(244, 240, 232, 0.14);
+      background: white;
+      outline: none;
     }
 
-    .status {
-      margin-top: 10px;
-      font-size: 0.9rem;
-      color: #b8c6d8;
-      text-align: center;
+    .status-bar {
+      position: relative;
+      width: min(100%, 980px);
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.86rem;
     }
 
-    .csg-hint {
-      font-size: 0.88rem;
-      color: #c4d0e0;
-      margin: 8px 0 10px;
-      line-height: 1.4;
+    .toggle-line {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
     }
 
-    .csg-row { flex-direction: column; align-items: stretch; }
-    .csg-row button { width: 100%; justify-content: center; }
+    .toggle-line label {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .panel-title h2 { margin-bottom: 0; }
+
+    .grid-2,
+    .grid-3 { display: grid; gap: 10px; }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .divider {
+      height: 1px;
+      margin: 16px 0;
+      background: linear-gradient(90deg, transparent, rgba(244, 240, 232, 0.20), transparent);
+    }
+
+    .operation-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .operation-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .operation-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .operation-head strong { color: var(--accent-2); }
+
+    .operation-head button {
+      padding: 5px 9px;
+      font-size: 0.78rem;
+    }
+
+    .operation-frame {
+      margin-bottom: 10px;
+    }
+
+    .operation-card input[type="number"] {
+      min-height: 38px;
+      padding: 8px;
+    }
+
+    .axis-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--faint);
+      font-size: 0.70rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
 
     .hidden { display: none !important; }
+
+    @media (max-width: 1120px) {
+      body { overflow: auto; }
+      .app { grid-template-columns: 1fr; height: auto; }
+      .rail { max-height: none; overflow: visible; }
+      .rail.left,
+      .rail.right { border-width: 0 0 1px 0; }
+      .stage { min-height: 620px; order: 2; }
+      .rail.left { order: 1; }
+      .rail.right { order: 3; }
+      canvas { min-height: 320px; }
+    }
+
+    @media (max-width: 580px) {
+      .grid-2,
+      .grid-3 { grid-template-columns: 1fr; }
+      .stage { padding: 14px; min-height: 520px; }
+      .rail { padding: 14px; }
+      h1 { font-size: 2.4rem; }
+    }
   </style>
 </head>
 
 <body>
   <div class="app">
-    <header class="shell-header">
-      <h1>WasmGL</h1>
-      <p class="lead">
-        <strong>Canvas:</strong> left-drag orbit, right-drag pan, wheel zoom (same model as the TS OrbitCamera).
-        Use the panel to add <strong>solid</strong> primitives (box, sphere, pyramid, cylinder, cone, torus), move and resize the <em>selected</em> object, and run CSG on <em>two</em> chosen objects.
-      </p>
-    </header>
+    <aside class="rail left" aria-label="Scene controls">
+      <div class="brand">
+        <p class="eyebrow">CSG modeler</p>
+        <h1>WasmGL Studio</h1>
+        <p class="lead">The browser is a thin shell. Objects, operation stacks, transforms, and CSG are owned by the wasm engine.</p>
+      </div>
 
-    <aside class="panel" aria-label="Controls">
-      <div class="card">
-        <h2>1 · Add object</h2>
-        <p class="section-desc">Closed solids only (no sheets or lines). Choose type, set size, then add.</p>
-        <label class="field-label" for="addType">Shape</label>
-        <select id="addType" aria-label="Object type to add">
-          <option value="cube">Box (width, height, depth)</option>
-          <option value="sphere">Sphere (radius, mesh detail)</option>
-          <option value="pyramid">Pyramid (base edge, height)</option>
-          <option value="cylinder">Cylinder / frustum (radii, height, segments)</option>
-          <option value="cone">Cone (base radius, height, segments)</option>
-          <option value="torus">Torus (major / minor radius, segments)</option>
+      <section class="card" aria-labelledby="add-title">
+        <h2 id="add-title">Add Figure</h2>
+        <label class="field-label" for="shapeType">Figure</label>
+        <select id="shapeType">
+          <option value="box">Box</option>
+          <option value="sphere">Sphere</option>
+          <option value="pyramid">Pyramid</option>
+          <option value="cylinder">Cylinder</option>
+          <option value="cone">Cone</option>
+          <option value="torus">Torus</option>
         </select>
-        <div id="addCubeFields">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addW">Width</label>
-              <input type="number" id="addW" min="0.01" step="0.1" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="addH">Height</label>
-              <input type="number" id="addH" min="0.01" step="0.1" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="addD">Depth</label>
-              <input type="number" id="addD" min="0.01" step="0.1" value="1" />
-            </div>
-          </div>
-        </div>
-        <div id="addSphereFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addR">Radius</label>
-              <input type="number" id="addR" min="0.01" step="0.05" value="0.4" />
-            </div>
-            <div>
-              <label class="field-label" for="addSegW">Segments (ring)</label>
-              <input type="number" id="addSegW" min="3" step="1" value="16" />
-            </div>
-            <div>
-              <label class="field-label" for="addSegH">Segments (pole)</label>
-              <input type="number" id="addSegH" min="2" step="1" value="16" />
-            </div>
-          </div>
-        </div>
-        <div id="addPyramidFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addPyrSide">Base edge</label>
-              <input type="number" id="addPyrSide" min="0.01" step="0.05" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="addPyrH">Height</label>
-              <input type="number" id="addPyrH" min="0.01" step="0.05" value="1" />
-            </div>
-          </div>
-        </div>
-        <div id="addConeFields" class="hidden">
-          <p class="section-desc" style="margin-bottom: 8px">Solid cone; apex at the top (Three.js–style).</p>
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addConeR">Base radius</label>
-              <input type="number" id="addConeR" min="0.01" step="0.05" value="0.4" />
-            </div>
-            <div>
-              <label class="field-label" for="addConeH">Height</label>
-              <input type="number" id="addConeH" min="0.01" step="0.05" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="addConeRs">Radial segments</label>
-              <input type="number" id="addConeRs" min="3" step="1" value="24" />
-            </div>
-            <div>
-              <label class="field-label" for="addConeHs">Height segments</label>
-              <input type="number" id="addConeHs" min="1" step="1" value="1" />
-            </div>
-          </div>
-        </div>
-        <div id="addCylinderFields" class="hidden">
-          <p class="section-desc" style="margin-bottom: 8px">Same top &amp; bottom radius = cylinder; different = truncated cone.</p>
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addCylRb">Radius bottom</label>
-              <input type="number" id="addCylRb" min="0.01" step="0.05" value="0.35" />
-            </div>
-            <div>
-              <label class="field-label" for="addCylRt">Radius top</label>
-              <input type="number" id="addCylRt" min="0.01" step="0.05" value="0.35" />
-            </div>
-            <div>
-              <label class="field-label" for="addCylH">Height</label>
-              <input type="number" id="addCylH" min="0.01" step="0.05" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="addCylRs">Radial segments</label>
-              <input type="number" id="addCylRs" min="3" step="1" value="24" />
-            </div>
-            <div>
-              <label class="field-label" for="addCylHs">Height segments</label>
-              <input type="number" id="addCylHs" min="1" step="1" value="1" />
-            </div>
-          </div>
-        </div>
-        <div id="addTorusFields" class="hidden">
-          <p class="section-desc" style="margin-bottom: 8px">Major = ring radius; minor = tube radius (must be &lt; major).</p>
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="addTorMaj">Major radius</label>
-              <input type="number" id="addTorMaj" min="0.01" step="0.05" value="0.55" />
-            </div>
-            <div>
-              <label class="field-label" for="addTorMin">Minor radius</label>
-              <input type="number" id="addTorMin" min="0.01" step="0.05" value="0.18" />
-            </div>
-            <div>
-              <label class="field-label" for="addTorRs">Tube segments</label>
-              <input type="number" id="addTorRs" min="3" step="1" value="16" />
-            </div>
-            <div>
-              <label class="field-label" for="addTorTs">Ring segments</label>
-              <input type="number" id="addTorTs" min="3" step="1" value="32" />
-            </div>
-          </div>
-        </div>
-        <div class="btn-row" style="margin-top: 10px">
-          <button type="button" id="btnAddObject" class="primary">Add to scene</button>
-        </div>
-      </div>
+        <div class="shape-note" id="shapeDefaults"></div>
+        <button type="button" id="btnAddShape" class="primary">Add selected figure</button>
+      </section>
 
-      <div class="card">
-        <h2>2 · Selected object</h2>
-        <p class="section-desc">Pick what transforms and resizing apply to.</p>
-        <label class="field-label" for="objectSelect">Scene object</label>
-        <select id="objectSelect" aria-label="Scene object">
-          <option value="">— Empty scene —</option>
-        </select>
-        <div class="btn-row">
-          <button type="button" id="btnDeleteObject" class="ghost" disabled>Remove from scene</button>
-          <button type="button" id="btnDeselect" class="ghost" disabled>Clear selection</button>
+      <section class="card" aria-labelledby="objects-title">
+        <div class="panel-title">
+          <div>
+            <h2 id="objects-title">Objects</h2>
+            <p class="hint">Click to edit one object. Ctrl-click or Cmd-click to build a CSG selection.</p>
+          </div>
+          <span class="badge" id="objectCountBadge">0</span>
         </div>
-      </div>
+        <div id="objectList" class="object-list"></div>
+        <div class="button-row" style="margin-top: 12px;">
+          <button type="button" id="btnRemoveObject" class="danger" disabled>Remove from scene</button>
+        </div>
+      </section>
 
-      <div class="card">
-        <h2>3 · Resize selection</h2>
-        <p class="section-desc">Dimensions match each solid primitive (box, sphere, pyramid, cylinder/frustum, cone, torus). CSG results cannot be resized here.</p>
-        <p id="resizeUnavailable" class="section-desc hidden">CSG results cannot be resized here — add a new primitive instead.</p>
-        <div id="resizeBoxFields">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="resW">Width</label>
-              <input type="number" id="resW" min="0.01" step="0.1" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="resH">Height</label>
-              <input type="number" id="resH" min="0.01" step="0.1" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="resD">Depth</label>
-              <input type="number" id="resD" min="0.01" step="0.1" value="1" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button type="button" id="btnApplyBoxResize" class="primary">Apply box size</button>
-          </div>
+      <section class="card hidden" id="csgCard" aria-labelledby="csg-title">
+        <h2 id="csg-title">CSG Operation</h2>
+        <p class="hint" id="csgSummary"></p>
+        <div class="button-row stack" style="margin-top: 12px;">
+          <button type="button" id="btnUnion" class="primary">Union selected</button>
+          <button type="button" id="btnDifference" class="secondary">Difference: first minus rest</button>
+          <button type="button" id="btnIntersection">Intersection selected</button>
         </div>
-        <div id="resizeSphereFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="resRad">Radius</label>
-              <input type="number" id="resRad" min="0.01" step="0.05" value="0.4" />
-            </div>
-            <div>
-              <label class="field-label" for="resSegW">Segments (ring)</label>
-              <input type="number" id="resSegW" min="3" step="1" value="16" />
-            </div>
-            <div>
-              <label class="field-label" for="resSegH">Segments (pole)</label>
-              <input type="number" id="resSegH" min="2" step="1" value="16" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button type="button" id="btnApplySphereResize" class="primary">Apply sphere size</button>
-          </div>
-        </div>
-        <div id="resizePyramidFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="resPyrSide">Base edge</label>
-              <input type="number" id="resPyrSide" min="0.01" step="0.05" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="resPyrH">Height</label>
-              <input type="number" id="resPyrH" min="0.01" step="0.05" value="1" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button type="button" id="btnApplyPyramidResize" class="primary">Apply pyramid size</button>
-          </div>
-        </div>
-        <div id="resizeCylinderFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="resCylRb">Radius bottom</label>
-              <input type="number" id="resCylRb" min="0.01" step="0.05" value="0.35" />
-            </div>
-            <div>
-              <label class="field-label" for="resCylRt">Radius top</label>
-              <input type="number" id="resCylRt" min="0.01" step="0.05" value="0.35" />
-            </div>
-            <div>
-              <label class="field-label" for="resCylH">Height</label>
-              <input type="number" id="resCylH" min="0.01" step="0.05" value="1" />
-            </div>
-            <div>
-              <label class="field-label" for="resCylRs">Radial segments</label>
-              <input type="number" id="resCylRs" min="3" step="1" value="24" />
-            </div>
-            <div>
-              <label class="field-label" for="resCylHs">Height segments</label>
-              <input type="number" id="resCylHs" min="1" step="1" value="1" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button type="button" id="btnApplyCylinderResize" class="primary">Apply cylinder size</button>
-          </div>
-        </div>
-        <div id="resizeTorusFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label class="field-label" for="resTorMaj">Major radius</label>
-              <input type="number" id="resTorMaj" min="0.01" step="0.05" value="0.55" />
-            </div>
-            <div>
-              <label class="field-label" for="resTorMin">Minor radius</label>
-              <input type="number" id="resTorMin" min="0.01" step="0.05" value="0.18" />
-            </div>
-            <div>
-              <label class="field-label" for="resTorRs">Tube segments</label>
-              <input type="number" id="resTorRs" min="3" step="1" value="16" />
-            </div>
-            <div>
-              <label class="field-label" for="resTorTs">Ring segments</label>
-              <input type="number" id="resTorTs" min="3" step="1" value="32" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button type="button" id="btnApplyTorusResize" class="primary">Apply torus size</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>4 · Move selection <span class="badge">object</span></h2>
-        <p class="section-desc">Translate and rotate the <em>selected</em> mesh in world space (metres and degrees).</p>
-        <label class="field-label">Translate — step <span id="moveStepLabel">0.12</span> m</label>
-        <div class="grid-3">
-          <button type="button" class="move-btn" data-axis="x" data-sign="-" disabled>X −</button>
-          <button type="button" class="move-btn" data-axis="x" data-sign="+" disabled>X +</button>
-          <button type="button" class="move-btn" data-axis="y" data-sign="-" disabled>Y −</button>
-          <button type="button" class="move-btn" data-axis="y" data-sign="+" disabled>Y +</button>
-          <button type="button" class="move-btn" data-axis="z" data-sign="-" disabled>Z −</button>
-          <button type="button" class="move-btn" data-axis="z" data-sign="+" disabled>Z +</button>
-        </div>
-        <label class="field-label" style="margin-top: 10px">Rotate — step <span id="rotStepLabel">10</span>°</label>
-        <div class="grid-3 compact">
-          <button type="button" class="rot-btn" data-axis="x" data-sign="-" disabled>Rx −</button>
-          <button type="button" class="rot-btn" data-axis="x" data-sign="+" disabled>Rx +</button>
-          <button type="button" class="rot-btn" data-axis="y" data-sign="-" disabled>Ry −</button>
-          <button type="button" class="rot-btn" data-axis="y" data-sign="+" disabled>Ry +</button>
-          <button type="button" class="rot-btn" data-axis="z" data-sign="-" disabled>Rz −</button>
-          <button type="button" class="rot-btn" data-axis="z" data-sign="+" disabled>Rz +</button>
-        </div>
-      </div>
-
-      <div class="card" id="csgCard">
-        <h2>5 · Boolean CSG <span class="badge">two objects</span></h2>
-        <p class="section-desc">Pick operand <strong>A</strong> and <strong>B</strong> (two different objects). Union and intersection are symmetric; <strong>difference</strong> is A − B.</p>
-        <label class="field-label" for="operandA">Operand A</label>
-        <select id="operandA" aria-label="CSG operand A">
-          <option value="">— None —</option>
-        </select>
-        <label class="field-label" for="operandB">Operand B</label>
-        <select id="operandB" aria-label="CSG operand B">
-          <option value="">— None —</option>
-        </select>
-        <div class="btn-row csg-row" style="margin-top: 10px">
-          <button type="button" id="btnUnion" class="primary" disabled>Union</button>
-          <button type="button" id="btnDiff" disabled>Difference A − B</button>
-          <button type="button" id="btnIsect" disabled>Intersection</button>
-        </div>
-      </div>
+      </section>
     </aside>
 
-    <main class="stage">
-      <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
-      <p class="status" id="statusLine"></p>
-      <div class="btn-row" style="margin-top: 4px; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap">
-        <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none">
-          <input type="checkbox" id="showGrid" checked />
-          Base grid
-        </label>
-        <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none">
-          <input type="checkbox" id="showAxes" checked />
-          Axis helper
-        </label>
-        <button type="button" id="fullscreen">Fullscreen canvas</button>
+    <main class="stage" aria-label="3D canvas">
+      <div class="canvas-shell">
+        <canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
+      </div>
+      <div class="status-bar">
+        <span id="statusLine">Loading wasm...</span>
+        <span class="toggle-line">
+          <label><input type="checkbox" id="showGrid" checked /> Base grid</label>
+          <label><input type="checkbox" id="showAxes" checked /> Axis helper</label>
+          <button type="button" id="fullscreen">Fullscreen canvas</button>
+        </span>
       </div>
     </main>
+
+    <aside class="rail right" aria-label="Selected object properties">
+      <div id="rightPanelContent"></div>
+    </aside>
   </div>
 
   <script>
-    var MOVE_STEP = 0.12;
-    var ROT_STEP = 10;
-
     var canvas = document.getElementById("canvas");
-    var objectSelect = document.getElementById("objectSelect");
-    var operandA = document.getElementById("operandA");
-    var operandB = document.getElementById("operandB");
-    var btnUnion = document.getElementById("btnUnion");
-    var btnDiff = document.getElementById("btnDiff");
-    var btnIsect = document.getElementById("btnIsect");
-    var btnDeselect = document.getElementById("btnDeselect");
-    var btnDeleteObject = document.getElementById("btnDeleteObject");
+    var shapeType = document.getElementById("shapeType");
+    var shapeDefaults = document.getElementById("shapeDefaults");
+    var objectList = document.getElementById("objectList");
+    var objectCountBadge = document.getElementById("objectCountBadge");
+    var rightPanelContent = document.getElementById("rightPanelContent");
     var statusLine = document.getElementById("statusLine");
+    var csgCard = document.getElementById("csgCard");
+    var csgSummary = document.getElementById("csgSummary");
+    var btnRemoveObject = document.getElementById("btnRemoveObject");
+    var runtimeReady = false;
+    var selectedSerials = [];
 
-    document.getElementById("moveStepLabel").textContent = String(MOVE_STEP);
-    document.getElementById("rotStepLabel").textContent = String(ROT_STEP);
-
-    var addType = document.getElementById("addType");
-    var addFieldGroups = {
-      cube: document.getElementById("addCubeFields"),
-      sphere: document.getElementById("addSphereFields"),
-      pyramid: document.getElementById("addPyramidFields"),
-      cylinder: document.getElementById("addCylinderFields"),
-      cone: document.getElementById("addConeFields"),
-      torus: document.getElementById("addTorusFields"),
-    };
-    function updateAddShapePanels() {
-      var v = addType.value;
-      for (var key in addFieldGroups) {
-        addFieldGroups[key].classList.add("hidden");
+    var SHAPES = {
+      box: {
+        kind: 1,
+        label: "Box",
+        defaults: "1 x 1 x 1",
+        detail: "Width, depth, and Z-up height are one unit."
+      },
+      sphere: {
+        kind: 2,
+        label: "Sphere",
+        defaults: "diameter 1",
+        detail: "Radius 0.5 with medium mesh detail."
+      },
+      pyramid: {
+        kind: 4,
+        label: "Pyramid",
+        defaults: "base 1, height 1",
+        detail: "Triangular base and one unit Z-up height."
+      },
+      cylinder: {
+        kind: 5,
+        label: "Cylinder",
+        defaults: "diameter 1, height 1",
+        detail: "Radii 0.5 and Z-up height one unit."
+      },
+      cone: {
+        kind: 7,
+        label: "Cone",
+        defaults: "base diameter 1, height 1",
+        detail: "Base radius 0.5, top radius zero, Z-up."
+      },
+      torus: {
+        kind: 6,
+        label: "Torus",
+        defaults: "outer diameter about 1",
+        detail: "Major radius 0.35 and tube radius 0.15."
       }
-      if (v === "cube") addFieldGroups.cube.classList.remove("hidden");
-      else if (v === "sphere") addFieldGroups.sphere.classList.remove("hidden");
-      else if (v === "pyramid") addFieldGroups.pyramid.classList.remove("hidden");
-      else if (v === "cylinder") addFieldGroups.cylinder.classList.remove("hidden");
-      else if (v === "cone") addFieldGroups.cone.classList.remove("hidden");
-      else if (v === "torus") addFieldGroups.torus.classList.remove("hidden");
-    }
-    addType.addEventListener("change", updateAddShapePanels);
-    updateAddShapePanels();
+    };
 
-    canvas.addEventListener("contextmenu", function (e) {
-      e.preventDefault();
+    canvas.addEventListener("contextmenu", function (event) {
+      event.preventDefault();
     });
 
-    function updateStatus() {
-      statusLine.textContent =
-        "Left-drag: orbit · Right-drag: pan · Wheel: zoom · WASD: dolly / strafe";
+    function setStatus(text) {
+      statusLine.textContent = text;
     }
-    updateStatus();
 
-    function kindLabel(k) {
-      if (k === 1) return "Box";
-      if (k === 2) return "Sphere";
-      if (k === 3) return "CSG";
-      if (k === 4) return "Pyramid";
-      if (k === 5) return "Cylinder";
-      if (k === 6) return "Torus";
-      if (k === 7) return "Cone";
+    function kindLabel(kind) {
+      if (kind === 1) return "Box";
+      if (kind === 2) return "Sphere";
+      if (kind === 3) return "CSG Mesh";
+      if (kind === 4) return "Pyramid";
+      if (kind === 5) return "Cylinder";
+      if (kind === 6) return "Torus";
+      if (kind === 7) return "Cone";
       return "Object";
     }
 
-    function fillOperandSelect(el, n, currentId) {
-      el.innerHTML = "";
-      var def = document.createElement("option");
-      def.value = "";
-      def.textContent = "— None —";
-      el.appendChild(def);
-      var kcounts = {};
+    function fmt(value) {
+      var n = Number(value);
+      if (!isFinite(n)) return "0";
+      return String(Math.round(n * 1000) / 1000);
+    }
+
+    function numFromInput(id, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return fallback;
+      var n = parseFloat(el.value);
+      return isFinite(n) ? n : fallback;
+    }
+
+    function intFromInput(id, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return fallback;
+      var n = parseInt(el.value, 10);
+      return isFinite(n) ? n : fallback;
+    }
+
+    function objectCount() {
+      return runtimeReady ? Module._getSceneObjectCount() : 0;
+    }
+
+    function serialAt(index) {
+      return Module._getObjectSerialId(index);
+    }
+
+    function indexBySerial(serial) {
+      var n = objectCount();
       for (var i = 0; i < n; i++) {
-        var oid = Module._getSceneObjectId(i);
-        var k = Module._getObjectKindById(oid);
-        kcounts[k] = (kcounts[k] || 0) + 1;
-        var opt = document.createElement("option");
-        opt.value = String(oid);
-        opt.textContent = kindLabel(k) + " #" + kcounts[k] + " (id " + oid + ")";
-        el.appendChild(opt);
+        if (serialAt(i) === serial) return i;
       }
-      if (currentId > 0) el.value = String(currentId);
-      else el.value = "";
+      return -1;
     }
 
-    function sceneHasObjectId(id) {
-      var n = Module._getSceneObjectCount();
-      for (var i = 0; i < n; i++) {
-        if (Module._getSceneObjectId(i) === id) return true;
-      }
-      return false;
+    function objectName(index) {
+      var kind = Module._getObjectKind(index);
+      var serial = serialAt(index);
+      return kindLabel(kind) + " " + serial;
     }
 
-    function refreshOperandSelects() {
-      var n = Module._getSceneObjectCount();
-      if (n === 0) {
-        Module._setBooleanOperandA(0);
-        Module._setBooleanOperandB(0);
-      }
-      var a = Module._getBooleanOperandA();
-      var b = Module._getBooleanOperandB();
-      if (!sceneHasObjectId(a)) {
-        a = 0;
-        Module._setBooleanOperandA(0);
-      }
-      if (!sceneHasObjectId(b)) {
-        b = 0;
-        Module._setBooleanOperandB(0);
-      }
-      fillOperandSelect(operandA, n, a);
-      fillOperandSelect(operandB, n, b);
-      updateCsgButtons();
-    }
-
-    function updateCsgButtons() {
-      var n = Module._getSceneObjectCount();
-      var a = Module._getBooleanOperandA();
-      var b = Module._getBooleanOperandB();
-      var ok = n >= 2 && a > 0 && b > 0 && a !== b;
-      btnUnion.disabled = !ok;
-      btnDiff.disabled = !ok;
-      btnIsect.disabled = !ok;
-    }
-
-    function syncResizePanel() {
-      var sel = Module._getSelectedObjectId();
-      var kind = sel > 0 ? Module._getObjectKindById(sel) : 0;
-      var boxBlock = document.getElementById("resizeBoxFields");
-      var sphBlock = document.getElementById("resizeSphereFields");
-      var pyrBlock = document.getElementById("resizePyramidFields");
-      var cylBlock = document.getElementById("resizeCylinderFields");
-      var torBlock = document.getElementById("resizeTorusFields");
-      var unavail = document.getElementById("resizeUnavailable");
-      [boxBlock, sphBlock, pyrBlock, cylBlock, torBlock].forEach(function (el) {
-        el.classList.add("hidden");
-      });
-      if (sel <= 0 || kind === 0) {
-        unavail.classList.remove("hidden");
-        unavail.textContent = "Select a primitive to edit its dimensions.";
-        return;
-      }
-      if (kind === 3) {
-        unavail.classList.remove("hidden");
-        unavail.textContent = "CSG mesh: resizing is not supported. Add a new primitive if needed.";
-        return;
-      }
-      unavail.classList.add("hidden");
-      if (kind === 1) {
-        boxBlock.classList.remove("hidden");
-        document.getElementById("resW").value = String(Module._getSelectedBoxWidth());
-        document.getElementById("resH").value = String(Module._getSelectedBoxHeight());
-        document.getElementById("resD").value = String(Module._getSelectedBoxDepth());
-      } else if (kind === 2) {
-        sphBlock.classList.remove("hidden");
-        document.getElementById("resRad").value = String(Module._getSelectedSphereRadius());
-        document.getElementById("resSegW").value = String(Module._getSelectedSphereWidthSegments());
-        document.getElementById("resSegH").value = String(Module._getSelectedSphereHeightSegments());
-      } else if (kind === 4) {
-        pyrBlock.classList.remove("hidden");
-        document.getElementById("resPyrSide").value = String(Module._getSelectedPyramidSide());
-        document.getElementById("resPyrH").value = String(Module._getSelectedPyramidHeight());
-      } else if (kind === 5 || kind === 7) {
-        cylBlock.classList.remove("hidden");
-        document.getElementById("resCylRb").value = String(Module._getSelectedCylinderRadiusBottom());
-        document.getElementById("resCylRt").value = String(Module._getSelectedCylinderRadiusTop());
-        document.getElementById("resCylH").value = String(Module._getSelectedCylinderHeight());
-        document.getElementById("resCylRs").value = String(Module._getSelectedCylinderRadialSegments());
-        document.getElementById("resCylHs").value = String(Module._getSelectedCylinderHeightSegments());
-        var rtEl = document.getElementById("resCylRt");
-        if (kind === 7) {
-          rtEl.value = "0";
-          rtEl.disabled = true;
-        } else {
-          rtEl.disabled = false;
+    function sanitizeSelection() {
+      if (!runtimeReady) return;
+      var kept = [];
+      for (var i = 0; i < selectedSerials.length; i++) {
+        if (indexBySerial(selectedSerials[i]) >= 0 && kept.indexOf(selectedSerials[i]) < 0) {
+          kept.push(selectedSerials[i]);
         }
-      } else if (kind === 6) {
-        torBlock.classList.remove("hidden");
-        document.getElementById("resTorMaj").value = String(Module._getSelectedTorusMajorRadius());
-        document.getElementById("resTorMin").value = String(Module._getSelectedTorusMinorRadius());
-        document.getElementById("resTorRs").value = String(Module._getSelectedTorusRadialSegments());
-        document.getElementById("resTorTs").value = String(Module._getSelectedTorusTubularSegments());
       }
+      selectedSerials = kept;
+      var primary = selectedSerials.length > 0 ? selectedSerials[0] : 0;
+      Module._setSelectedObjectId(primary);
     }
 
-    function refreshObjectList() {
-      var n = Module._getSceneObjectCount();
-      var sel = Module._getSelectedObjectId();
-      objectSelect.innerHTML = "";
-      if (n <= 0) {
-        var opt0 = document.createElement("option");
-        opt0.value = "";
-        opt0.textContent = "— Empty scene —";
-        objectSelect.appendChild(opt0);
-        btnDeselect.disabled = true;
-        btnDeleteObject.disabled = true;
-        setTransformEnabled(false);
-        refreshOperandSelects();
-        syncResizePanel();
+    function updateShapeDefaults() {
+      var shape = SHAPES[shapeType.value];
+      shapeDefaults.innerHTML = "<span><strong>Default:</strong> " + shape.defaults + "</span><span>" + shape.detail + "</span>";
+    }
+
+    shapeType.addEventListener("change", updateShapeDefaults);
+    updateShapeDefaults();
+
+    function selectObject(serial, additive) {
+      if (!runtimeReady) return;
+      if (additive) {
+        var pos = selectedSerials.indexOf(serial);
+        if (pos >= 0) selectedSerials.splice(pos, 1);
+        else selectedSerials.push(serial);
+      } else {
+        selectedSerials = [serial];
+      }
+      sanitizeSelection();
+      renderAll();
+    }
+
+    objectList.addEventListener("click", function (event) {
+      var item = event.target.closest ? event.target.closest(".object-item") : null;
+      if (!item) return;
+      selectObject(parseInt(item.getAttribute("data-serial"), 10), event.ctrlKey || event.metaKey);
+    });
+
+    objectList.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      var item = event.target.closest ? event.target.closest(".object-item") : null;
+      if (!item) return;
+      event.preventDefault();
+      selectObject(parseInt(item.getAttribute("data-serial"), 10), event.ctrlKey || event.metaKey);
+    });
+
+    function renderObjectList() {
+      var n = objectCount();
+      objectCountBadge.textContent = String(n);
+      objectList.innerHTML = "";
+      btnRemoveObject.disabled = selectedSerials.length === 0;
+      if (n === 0) {
+        var empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "No objects yet. Add a figure above.";
+        objectList.appendChild(empty);
         return;
       }
-      var counts2 = {};
+
       for (var i = 0; i < n; i++) {
-        var oid = Module._getSceneObjectId(i);
-        var k = Module._getObjectKindById(oid);
-        counts2[k] = (counts2[k] || 0) + 1;
-        var opt = document.createElement("option");
-        opt.value = String(oid);
-        opt.textContent = kindLabel(k) + " #" + counts2[k] + " (id " + oid + ")";
-        objectSelect.appendChild(opt);
+        var serial = serialAt(i);
+        var selectedAt = selectedSerials.indexOf(serial);
+        var item = document.createElement("div");
+        item.className = "object-item" + (selectedAt >= 0 ? " selected" : "");
+        item.setAttribute("data-serial", String(serial));
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-selected", selectedAt >= 0 ? "true" : "false");
+
+        var badge = "";
+        if (selectedAt === 0) badge = "<span class=\"badge\">first</span>";
+        else if (selectedAt > 0) badge = "<span class=\"badge\">" + (selectedAt + 1) + "</span>";
+
+        item.innerHTML =
+          "<span class=\"object-index\">" + String(i + 1).padStart(2, "0") + "</span>" +
+          "<span class=\"object-name\"><strong>" + objectName(i) + "</strong><span>object id " + serial + "</span></span>" +
+          badge;
+        objectList.appendChild(item);
       }
-      if (sel > 0 && sceneHasObjectId(sel)) objectSelect.value = String(sel);
-      else objectSelect.value = "";
-      btnDeselect.disabled = sel <= 0;
-      btnDeleteObject.disabled = sel <= 0;
-      setTransformEnabled(sel > 0);
-      refreshOperandSelects();
-      syncResizePanel();
     }
 
-    function setTransformEnabled(on) {
-      var buttons = document.querySelectorAll(".move-btn, .rot-btn");
-      for (var i = 0; i < buttons.length; i++) buttons[i].disabled = !on;
+    function fieldHtml(id, label, value, min, step, extraAttrs) {
+      return "<label><span class=\"axis-label\">" + label + "</span><input type=\"number\" id=\"" + id + "\" value=\"" + fmt(value) + "\" min=\"" + min + "\" step=\"" + step + "\"" + (extraAttrs || "") + " /></label>";
     }
 
-    objectSelect.addEventListener("change", function () {
-      var v = objectSelect.value;
-      Module._setSelectedObjectId(v === "" ? 0 : parseInt(v, 10));
-      refreshObjectList();
-    });
+    function fParam(index, slot) {
+      return Module._getObjectFloatParameter(index, slot);
+    }
 
-    document.getElementById("btnDeselect").addEventListener("click", function () {
+    function iParam(index, slot) {
+      return Module._getObjectIntParameter(index, slot);
+    }
+
+    function renderDimensionEditor(index, kind) {
+      Module._setSelectedObjectId(serialAt(index));
+      if (kind === 3) {
+        return "<p class=\"hint\">This is a baked CSG mesh. Its primitive dimensions are not parametric, but wasm still owns the transform operation stack below.</p>";
+      }
+      if (kind === 1) {
+        return "<div class=\"grid-3\">" +
+          fieldHtml("dimW", "Width X", fParam(index, 0), 0.01, 0.1) +
+          fieldHtml("dimH", "Height Z", fParam(index, 1), 0.01, 0.1) +
+          fieldHtml("dimD", "Depth Y", fParam(index, 2), 0.01, 0.1) +
+          "</div><div class=\"button-row\" style=\"margin-top: 12px;\"><button type=\"button\" id=\"applyDimensions\" class=\"primary\">Apply dimensions</button></div>";
+      }
+      if (kind === 2) {
+        return "<div class=\"grid-3\">" +
+          fieldHtml("dimRadius", "Radius", fParam(index, 0), 0.01, 0.05) +
+          fieldHtml("dimSegW", "Ring seg", iParam(index, 0), 3, 1) +
+          fieldHtml("dimSegH", "Pole seg", iParam(index, 1), 2, 1) +
+          "</div><div class=\"button-row\" style=\"margin-top: 12px;\"><button type=\"button\" id=\"applyDimensions\" class=\"primary\">Apply dimensions</button></div>";
+      }
+      if (kind === 4) {
+        return "<div class=\"grid-2\">" +
+          fieldHtml("dimSide", "Base edge", fParam(index, 0), 0.01, 0.05) +
+          fieldHtml("dimPyrH", "Height Z", fParam(index, 1), 0.01, 0.05) +
+          "</div><div class=\"button-row\" style=\"margin-top: 12px;\"><button type=\"button\" id=\"applyDimensions\" class=\"primary\">Apply dimensions</button></div>";
+      }
+      if (kind === 5 || kind === 7) {
+        var topValue = kind === 7 ? 0 : fParam(index, 1);
+        var topDisabled = kind === 7 ? " disabled" : "";
+        return "<div class=\"grid-2\">" +
+          fieldHtml("dimRb", "Bottom radius", fParam(index, 0), 0.01, 0.05) +
+          fieldHtml("dimRt", "Top radius", topValue, 0, 0.05, topDisabled) +
+          fieldHtml("dimCylH", "Height Z", fParam(index, 2), 0.01, 0.05) +
+          fieldHtml("dimCylRs", "Radial seg", iParam(index, 0), 3, 1) +
+          fieldHtml("dimCylHs", "Height seg", iParam(index, 1), 1, 1) +
+          "</div><div class=\"button-row\" style=\"margin-top: 12px;\"><button type=\"button\" id=\"applyDimensions\" class=\"primary\">Apply dimensions</button></div>";
+      }
+      if (kind === 6) {
+        return "<div class=\"grid-2\">" +
+          fieldHtml("dimMaj", "Major radius", fParam(index, 0), 0.01, 0.05) +
+          fieldHtml("dimMin", "Tube radius", fParam(index, 1), 0.01, 0.05) +
+          fieldHtml("dimTorRs", "Tube seg", iParam(index, 0), 3, 1) +
+          fieldHtml("dimTorTs", "Ring seg", iParam(index, 1), 3, 1) +
+          "</div><div class=\"button-row\" style=\"margin-top: 12px;\"><button type=\"button\" id=\"applyDimensions\" class=\"primary\">Apply dimensions</button></div>";
+      }
+      return "<p class=\"hint\">No dimension editor is available for this object.</p>";
+    }
+
+    function bindDimensionEditor(index, kind) {
+      var apply = document.getElementById("applyDimensions");
+      if (!apply) return;
+      apply.addEventListener("click", function () {
+        if (kind === 1) {
+          var w = numFromInput("dimW", 1);
+          var h = numFromInput("dimH", 1);
+          var d = numFromInput("dimD", 1);
+          if (w > 0 && h > 0 && d > 0) Module._setObjectParameters(index, w, h, d, 0, 0);
+        } else if (kind === 2) {
+          var r = numFromInput("dimRadius", 0.5);
+          var sw = intFromInput("dimSegW", 18);
+          var sh = intFromInput("dimSegH", 18);
+          if (r > 0) Module._setObjectParameters(index, r, 0, 0, sw, sh);
+        } else if (kind === 4) {
+          var side = numFromInput("dimSide", 1);
+          var ph = numFromInput("dimPyrH", 1);
+          if (side > 0 && ph > 0) Module._setObjectParameters(index, side, ph, 0, 0, 0);
+        } else if (kind === 5 || kind === 7) {
+          var rb = numFromInput("dimRb", 0.5);
+          var rt = kind === 7 ? 0 : numFromInput("dimRt", 0.5);
+          var ch = numFromInput("dimCylH", 1);
+          var rs = intFromInput("dimCylRs", 24);
+          var hs = intFromInput("dimCylHs", 1);
+          if (rb > 0 && rt >= 0 && ch > 0) Module._setObjectParameters(index, rb, rt, ch, rs, hs);
+        } else if (kind === 6) {
+          var maj = numFromInput("dimMaj", 0.35);
+          var min = numFromInput("dimMin", 0.15);
+          var trs = intFromInput("dimTorRs", 24);
+          var tts = intFromInput("dimTorTs", 32);
+          if (maj > 0 && min > 0) Module._setObjectParameters(index, maj, min, 0, trs, tts);
+        }
+        renderAll();
+      });
+    }
+
+    function operationLabel(index, opIndex) {
+      var type = Module._getObjectTransformOperationType(index, opIndex);
+      var count = 0;
+      for (var i = 0; i <= opIndex; i++) {
+        if (Module._getObjectTransformOperationType(index, i) === type) count++;
+      }
+      return (type === 2 ? "Rotation " : "Translation ") + count;
+    }
+
+    function opInputHtml(axis, value, step, unit) {
+      return "<label><span class=\"axis-label\">" + axis.toUpperCase() + " " + unit + "</span><input class=\"operation-input\" data-field=\"" + axis + "\" type=\"number\" step=\"" + step + "\" value=\"" + fmt(value || 0) + "\" /></label>";
+    }
+
+    function renderOperationEditor(index) {
+      var html = "<div class=\"button-row\">" +
+        "<button type=\"button\" id=\"addTranslation\" class=\"secondary\">Add translation</button>" +
+        "<button type=\"button\" id=\"addRotation\" class=\"secondary\">Add rotation</button>" +
+        "</div>";
+      var count = Module._getObjectTransformOperationCount(index);
+      if (count === 0) {
+        html += "<div class=\"empty-state\" style=\"margin-top: 12px;\">No geometric operations yet. Add one to ask wasm to extend the ordered transform stack.</div>";
+        return html;
+      }
+      html += "<div class=\"operation-list\">";
+      for (var i = 0; i < count; i++) {
+        var type = Module._getObjectTransformOperationType(index, i);
+        var frame = Module._getObjectTransformOperationFrame(index, i);
+        var unit = type === 2 ? "deg" : "units";
+        var step = type === 2 ? "5" : "0.1";
+        html += "<div class=\"operation-card\" data-op-index=\"" + i + "\">" +
+          "<div class=\"operation-head\"><strong>" + operationLabel(index, i) + "</strong><button type=\"button\" class=\"danger remove-operation\">Remove</button></div>" +
+          "<label class=\"operation-frame\"><span class=\"axis-label\">Reference frame</span><select class=\"operation-frame-select\">" +
+          "<option value=\"1\"" + (frame === 1 ? " selected" : "") + ">Scene / world</option>" +
+          "<option value=\"2\"" + (frame === 2 ? " selected" : "") + ">Object / self</option>" +
+          "</select></label>" +
+          "<div class=\"grid-3\">" +
+          opInputHtml("x", Module._getObjectTransformOperationValue(index, i, 0), step, unit) +
+          opInputHtml("y", Module._getObjectTransformOperationValue(index, i, 1), step, unit) +
+          opInputHtml("z", Module._getObjectTransformOperationValue(index, i, 2), step, unit) +
+          "</div></div>";
+      }
+      html += "</div>";
+      return html;
+    }
+
+    function bindOperationEditor(index) {
+      var addTranslation = document.getElementById("addTranslation");
+      var addRotation = document.getElementById("addRotation");
+      if (addTranslation) {
+        addTranslation.addEventListener("click", function () {
+          Module._addObjectTransformOperation(index, 1, 1);
+          renderAll();
+        });
+      }
+      if (addRotation) {
+        addRotation.addEventListener("click", function () {
+          Module._addObjectTransformOperation(index, 2, 1);
+          renderAll();
+        });
+      }
+
+      var inputs = rightPanelContent.querySelectorAll(".operation-input");
+      for (var i = 0; i < inputs.length; i++) {
+        inputs[i].addEventListener("input", function (event) {
+          var card = event.target.closest(".operation-card");
+          var opIndex = parseInt(card.getAttribute("data-op-index"), 10);
+          var type = Module._getObjectTransformOperationType(index, opIndex);
+          var frame = Module._getObjectTransformOperationFrame(index, opIndex);
+          var x = Module._getObjectTransformOperationValue(index, opIndex, 0);
+          var y = Module._getObjectTransformOperationValue(index, opIndex, 1);
+          var z = Module._getObjectTransformOperationValue(index, opIndex, 2);
+          var value = parseFloat(event.target.value);
+          if (!isFinite(value)) value = 0;
+          var field = event.target.getAttribute("data-field");
+          if (field === "x") x = value;
+          if (field === "y") y = value;
+          if (field === "z") z = value;
+          Module._setObjectTransformOperationFull(index, opIndex, type, frame, x, y, z);
+        });
+      }
+
+      var frameSelects = rightPanelContent.querySelectorAll(".operation-frame-select");
+      for (var f = 0; f < frameSelects.length; f++) {
+        frameSelects[f].addEventListener("change", function (event) {
+          var card = event.target.closest(".operation-card");
+          var opIndex = parseInt(card.getAttribute("data-op-index"), 10);
+          var type = Module._getObjectTransformOperationType(index, opIndex);
+          var frame = parseInt(event.target.value, 10);
+          var x = Module._getObjectTransformOperationValue(index, opIndex, 0);
+          var y = Module._getObjectTransformOperationValue(index, opIndex, 1);
+          var z = Module._getObjectTransformOperationValue(index, opIndex, 2);
+          Module._setObjectTransformOperationFull(index, opIndex, type, frame, x, y, z);
+        });
+      }
+
+      var removeButtons = rightPanelContent.querySelectorAll(".remove-operation");
+      for (var k = 0; k < removeButtons.length; k++) {
+        removeButtons[k].addEventListener("click", function (event) {
+          var card = event.target.closest(".operation-card");
+          var opIndex = parseInt(card.getAttribute("data-op-index"), 10);
+          Module._removeObjectTransformOperation(index, opIndex);
+          renderAll();
+        });
+      }
+    }
+
+    function renderRightPanel() {
+      sanitizeSelection();
+      if (!runtimeReady) {
+        rightPanelContent.innerHTML = "<section class=\"card\"><h2>Selection</h2><p class=\"hint\">Waiting for the wasm runtime.</p></section>";
+        return;
+      }
+      if (selectedSerials.length === 0) {
+        rightPanelContent.innerHTML = "<section class=\"card\"><h2>Selection</h2><p class=\"hint\">Select one object from the left list to edit dimensions and geometric operations.</p></section>";
+        return;
+      }
+      if (selectedSerials.length > 1) {
+        rightPanelContent.innerHTML = "<section class=\"card\"><h2>Multiple Selected</h2><p class=\"hint\">Use the CSG operation card on the left. Difference uses the first selected object minus the rest.</p></section>";
+        return;
+      }
+
+      var index = indexBySerial(selectedSerials[0]);
+      if (index < 0) return;
+      var kind = Module._getObjectKind(index);
+      Module._setSelectedObjectId(selectedSerials[0]);
+      var html = "<section class=\"card\"><p class=\"eyebrow\">object id " + selectedSerials[0] + "</p><h1 style=\"font-size: 2.5rem; margin-bottom: 10px;\">" + objectName(index) + "</h1><p class=\"hint\">" + kindLabel(kind) + " - data comes from the wasm engine.</p></section>" +
+        "<section class=\"card\"><h2>Dimensions</h2>" + renderDimensionEditor(index, kind) + "</section>" +
+        "<section class=\"card\"><h2>Geometric Operations</h2><p class=\"hint\">Wasm owns the ordered list and cached transform matrices. Scene-frame operations pre-multiply the object matrix; object-frame operations post-multiply it and follow the object's self axes.</p><div class=\"divider\"></div>" + renderOperationEditor(index) + "</section>";
+      rightPanelContent.innerHTML = html;
+      bindDimensionEditor(index, kind);
+      bindOperationEditor(index);
+    }
+
+    function renderCsgPanel() {
+      if (!runtimeReady || selectedSerials.length < 2) {
+        csgCard.classList.add("hidden");
+        return;
+      }
+      csgCard.classList.remove("hidden");
+      var names = [];
+      for (var i = 0; i < selectedSerials.length; i++) {
+        var idx = indexBySerial(selectedSerials[i]);
+        if (idx >= 0) names.push(objectName(idx));
+      }
+      csgSummary.textContent = selectedSerials.length + " selected: " + names.join(", ") + ". Difference uses " + names[0] + " minus the rest, in selection order.";
+    }
+
+    function syncBooleanSelection() {
+      Module._clearBooleanSelection();
+      for (var i = 0; i < selectedSerials.length; i++) {
+        var idx = indexBySerial(selectedSerials[i]);
+        if (idx >= 0) Module._addBooleanSelectionObject(idx);
+      }
+    }
+
+    function renderAll() {
+      sanitizeSelection();
+      if (runtimeReady) syncBooleanSelection();
+      renderObjectList();
+      renderCsgPanel();
+      renderRightPanel();
+      setStatus("Canvas: left-drag orbit, right-drag pan, wheel zoom. Object list: Ctrl/Cmd-click for CSG selection.");
+    }
+
+    function addSelectedShape() {
+      if (!runtimeReady) return;
+      var before = objectCount();
+      var newSerial = Module._addDefaultObject(SHAPES[shapeType.value].kind);
+      var after = objectCount();
+      if (after <= before || newSerial <= 0) return;
+      selectedSerials = [newSerial];
+      Module._setSelectedObjectId(newSerial);
+      renderAll();
+    }
+
+    function removeSelectedFromScene() {
+      if (!runtimeReady || selectedSerials.length === 0) return;
+      var toRemove = selectedSerials.slice();
+      for (var i = 0; i < toRemove.length; i++) {
+        Module._removeSceneObject(toRemove[i]);
+      }
+      selectedSerials = [];
       Module._setSelectedObjectId(0);
-      objectSelect.value = "";
-      refreshObjectList();
-    });
-
-    btnDeleteObject.addEventListener("click", function () {
-      var id = Module._getSelectedObjectId();
-      if (id > 0) {
-        Module._removeSceneObject(id);
-        refreshObjectList();
-      }
-    });
-
-    operandA.addEventListener("change", function () {
-      var v = operandA.value;
-      Module._setBooleanOperandA(v === "" ? 0 : parseInt(v, 10));
-      updateCsgButtons();
-    });
-
-    operandB.addEventListener("change", function () {
-      var v = operandB.value;
-      Module._setBooleanOperandB(v === "" ? 0 : parseInt(v, 10));
-      updateCsgButtons();
-    });
-
-    document.getElementById("btnUnion").addEventListener("click", function () {
-      Module._performBooleanUnion();
-      refreshObjectList();
-    });
-    document.getElementById("btnDiff").addEventListener("click", function () {
-      Module._performBooleanDifference();
-      refreshObjectList();
-    });
-    document.getElementById("btnIsect").addEventListener("click", function () {
-      Module._performBooleanIntersection();
-      refreshObjectList();
-    });
-
-    function bindAxisButtons(className, handler) {
-      var nodes = document.querySelectorAll(className);
-      for (var i = 0; i < nodes.length; i++) nodes[i].addEventListener("click", handler);
+      renderAll();
     }
 
-    bindAxisButtons(".move-btn", function (ev) {
-      var axis = ev.target.getAttribute("data-axis");
-      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
-      var dx = 0, dy = 0, dz = 0;
-      var s = MOVE_STEP * sign;
-      if (axis === "x") dx = s;
-      if (axis === "y") dy = s;
-      if (axis === "z") dz = s;
-      Module._nudgeSelectedTranslate(dx, dy, dz);
-    });
+    function runCsg(operation) {
+      if (!runtimeReady || selectedSerials.length < 2) return;
+      var opCode = operation === "union" ? 1 : (operation === "difference" ? 2 : 3);
+      setStatus("Running CSG...");
+      syncBooleanSelection();
+      var resultIndex = Module._performBooleanOperation(opCode);
+      if (resultIndex < 0) {
+        setStatus("CSG did not create a result. Check the selected solids and try again.");
+        return;
+      }
+      selectedSerials = [serialAt(resultIndex)];
+      sanitizeSelection();
+      renderAll();
+    }
 
-    bindAxisButtons(".rot-btn", function (ev) {
-      var axis = ev.target.getAttribute("data-axis");
-      var sign = ev.target.getAttribute("data-sign") === "+" ? 1 : -1;
-      var r = ROT_STEP * sign;
-      var rx = 0, ry = 0, rz = 0;
-      if (axis === "x") rx = r;
-      if (axis === "y") ry = r;
-      if (axis === "z") rz = r;
-      Module._nudgeSelectedRotateDegrees(rx, ry, rz);
-    });
+    document.getElementById("btnAddShape").addEventListener("click", addSelectedShape);
+    btnRemoveObject.addEventListener("click", removeSelectedFromScene);
+    document.getElementById("btnUnion").addEventListener("click", function () { runCsg("union"); });
+    document.getElementById("btnDifference").addEventListener("click", function () { runCsg("difference"); });
+    document.getElementById("btnIntersection").addEventListener("click", function () { runCsg("intersection"); });
 
     document.getElementById("fullscreen").addEventListener("click", function () {
       if (canvas.requestFullscreen) canvas.requestFullscreen();
@@ -859,107 +1031,21 @@
     var Module = {
       canvas: canvas,
       onRuntimeInitialized: function () {
-        document.getElementById("btnAddObject").addEventListener("click", function () {
-          if (addType.value === "cube") {
-            var w = parseFloat(document.getElementById("addW").value);
-            var h = parseFloat(document.getElementById("addH").value);
-            var d = parseFloat(document.getElementById("addD").value);
-            if (!(w > 0 && h > 0 && d > 0)) return;
-            Module._addCube(w, h, d);
-          } else if (addType.value === "sphere") {
-            var rad = parseFloat(document.getElementById("addR").value);
-            var sw = parseInt(document.getElementById("addSegW").value, 10);
-            var sh = parseInt(document.getElementById("addSegH").value, 10);
-            if (!(rad > 0)) return;
-            Module._addSphere(rad, sw, sh);
-          } else if (addType.value === "pyramid") {
-            var ps = parseFloat(document.getElementById("addPyrSide").value);
-            var ph = parseFloat(document.getElementById("addPyrH").value);
-            if (!(ps > 0 && ph > 0)) return;
-            Module._addPyramid(ps, ph);
-          } else if (addType.value === "cylinder") {
-            var rb = parseFloat(document.getElementById("addCylRb").value);
-            var rt = parseFloat(document.getElementById("addCylRt").value);
-            var ch = parseFloat(document.getElementById("addCylH").value);
-            var crs = parseInt(document.getElementById("addCylRs").value, 10);
-            var chs = parseInt(document.getElementById("addCylHs").value, 10);
-            if (!(rb > 0 && ch > 0 && rt >= 0)) return;
-            Module._addCylinder(rb, rt, ch, crs, chs);
-          } else if (addType.value === "cone") {
-            var cr = parseFloat(document.getElementById("addConeR").value);
-            var coh = parseFloat(document.getElementById("addConeH").value);
-            var crs = parseInt(document.getElementById("addConeRs").value, 10);
-            var chs = parseInt(document.getElementById("addConeHs").value, 10);
-            if (!(cr > 0 && coh > 0)) return;
-            Module._addCone(cr, coh, crs, chs);
-          } else if (addType.value === "torus") {
-            var maj = parseFloat(document.getElementById("addTorMaj").value);
-            var minr = parseFloat(document.getElementById("addTorMin").value);
-            var trs = parseInt(document.getElementById("addTorRs").value, 10);
-            var tts = parseInt(document.getElementById("addTorTs").value, 10);
-            if (!(maj > 0 && minr > 0)) return;
-            Module._addTorus(maj, minr, trs, tts);
-          }
-          refreshObjectList();
-        });
-
-        document.getElementById("btnApplyBoxResize").addEventListener("click", function () {
-          var w = parseFloat(document.getElementById("resW").value);
-          var h = parseFloat(document.getElementById("resH").value);
-          var d = parseFloat(document.getElementById("resD").value);
-          if (w > 0 && h > 0 && d > 0) Module._resizeSelectedBox(w, h, d);
-          refreshObjectList();
-        });
-
-        document.getElementById("btnApplySphereResize").addEventListener("click", function () {
-          var r = parseFloat(document.getElementById("resRad").value);
-          var sw = parseInt(document.getElementById("resSegW").value, 10);
-          var sh = parseInt(document.getElementById("resSegH").value, 10);
-          if (r > 0) Module._resizeSelectedSphere(r, sw, sh);
-          refreshObjectList();
-        });
-        document.getElementById("btnApplyPyramidResize").addEventListener("click", function () {
-          var s = parseFloat(document.getElementById("resPyrSide").value);
-          var h = parseFloat(document.getElementById("resPyrH").value);
-          if (s > 0 && h > 0) Module._resizeSelectedPyramid(s, h);
-          refreshObjectList();
-        });
-        document.getElementById("btnApplyCylinderResize").addEventListener("click", function () {
-          var rb = parseFloat(document.getElementById("resCylRb").value);
-          var rt = parseFloat(document.getElementById("resCylRt").value);
-          var h = parseFloat(document.getElementById("resCylH").value);
-          var rs = parseInt(document.getElementById("resCylRs").value, 10);
-          var hs = parseInt(document.getElementById("resCylHs").value, 10);
-          var sel = Module._getSelectedObjectId();
-          var k = sel > 0 ? Module._getObjectKindById(sel) : 0;
-          if (k === 7) rt = 0;
-          if (rb > 0 && rt >= 0 && h > 0) Module._resizeSelectedCylinder(rb, rt, h, rs, hs);
-          refreshObjectList();
-        });
-        document.getElementById("btnApplyTorusResize").addEventListener("click", function () {
-          var maj = parseFloat(document.getElementById("resTorMaj").value);
-          var minr = parseFloat(document.getElementById("resTorMin").value);
-          var rs = parseInt(document.getElementById("resTorRs").value, 10);
-          var ts = parseInt(document.getElementById("resTorTs").value, 10);
-          if (maj > 0 && minr > 0) Module._resizeSelectedTorus(maj, minr, rs, ts);
-          refreshObjectList();
-        });
+        runtimeReady = true;
         var showGrid = document.getElementById("showGrid");
         var showAxes = document.getElementById("showAxes");
         function syncGridToggle() {
-          if (typeof Module._setBaseGridVisible === "function")
-            Module._setBaseGridVisible(showGrid.checked ? 1 : 0);
+          if (typeof Module._setBaseGridVisible === "function") Module._setBaseGridVisible(showGrid.checked ? 1 : 0);
         }
         function syncAxesToggle() {
-          if (typeof Module._setAxisHelperVisible === "function")
-            Module._setAxisHelperVisible(showAxes.checked ? 1 : 0);
+          if (typeof Module._setAxisHelperVisible === "function") Module._setAxisHelperVisible(showAxes.checked ? 1 : 0);
         }
         showGrid.addEventListener("change", syncGridToggle);
         showAxes.addEventListener("change", syncAxesToggle);
         syncGridToggle();
         syncAxesToggle();
-        refreshObjectList();
-      },
+        renderAll();
+      }
     };
   </script>
   <script src="wasmGL.js"></script>
